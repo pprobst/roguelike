@@ -1,0 +1,350 @@
+#![enable(implicit_some)]
+(
+    spawn_table: [
+        (
+           name: "Med-Kit", 
+           spawn_weight: 1,
+        ), 
+        (
+            name: "Guarah", 
+            spawn_weight: 5,
+            level_type: ["Forest", "Ruins"],
+        ),
+        (
+            name: "Raccoon",
+            spawn_weight: 10,
+            level_type: ["Forest", "Ruins"],
+        ),
+        (
+            name: "Man-Ape",
+            spawn_weight: 40,
+            min_max_level: (1, 3),
+            level_type: ["Forest", "Ruins", "Cave"],
+        ),
+    ],
+
+    /* Items and equipment. */
+    items: [
+        // CONSUMABLES
+        (
+            name: "Med-Kit",
+            descr: "A small package containing\ngeneral items for\nemergency first aid:\nbandages, medicinal herbs\nand assorted chemicals.",
+            tier: 3,
+            renderable: (
+                glyph: '!',
+                fg: "BrightRed",
+                bg: "Background",
+                layer: 0,
+            ),
+            consumable: (
+                effects: { 
+                    "heal": 5,
+                },
+            ),
+        ),
+        // AMMO
+        (
+            name: ".32 Ammo",
+            descr: "Ammunition for certain weapons.",
+            tier: 4,
+            renderable: (
+                glyph: '≡',
+                fg: "BrightYellow",
+                bg: "Background",
+                layer: 0,
+            ),
+            ammunition: (
+                ammo: 7,
+                ammo_type: "_32",
+            ),
+        ),
+
+        // MELEE WEAPONS
+        (
+            name: "Tantou",
+            descr: "A guardless short sword.",
+            tier: 2,
+            renderable: (
+                glyph: '/',
+                fg: "BrightCyan",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "weapon1",
+            ),
+            melee: (
+                damage: "1d4+2",
+                class: "dagger"
+            ),
+        ),
+        (
+            name: "Flint Axe",
+            descr: "A crude & handleless axe\nmade of flint.",
+            tier: 1,
+            renderable: (
+                glyph: 'F',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "weapon1",
+            ),
+            melee: (
+                damage: "1d4",
+                class: "axe"
+            ),
+        ),
+        // RANGED WEAPONS
+        (
+            name: "Revolver",
+            descr: "Trusty firearm for the common drifter.",
+            tier: 2,
+            renderable: (
+                glyph: 'R',
+                fg: "Cyan",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "weapon2",
+            ),
+            missile: (
+                damage: "1d8+5",
+                range: 8,
+                class: "pistol",
+                ammo_type: "_32",
+                max_ammo: 7,
+            ),
+        ),
+        // CLOTHING
+        (
+            name: "Filthy Rags",
+            descr: "Stained pieces of fabric\nwith an indescribable odor\nthat can barely be\nconsidered clothing.",
+            tier: 1,
+            renderable: (
+                glyph: 'U',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "torso",
+            ),
+            armor: (
+                defense: 1,
+            ),
+        ),
+        (
+            name: "Old Leather Armor",
+            descr: "A careful leather crafts-\nmanship is hidden between\nlayers of prolonged use.",
+            tier: 1,
+            renderable: (
+                glyph: 'L',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "torso",
+            ),
+            armor: (
+                defense: 3,
+            ),
+        ),
+        (
+            name: "Cargo Pants",
+            descr: "A highly practical pair of pants.\nPreferred by tinkerers.",
+            tier: 1,
+            renderable: (
+                glyph: 'P',
+                fg: "Green",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "legs",
+            ),
+            armor: (
+                defense: 1,
+            ),
+        ),
+        (
+            name: "Bombacho",
+            descr: "Large, wide pants. Typical clothing\nofthe region.",
+            tier: 1,
+            renderable: (
+                glyph: 'P',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "legs",
+            ),
+            armor: (
+                defense: 1,
+            ),
+        ),
+        (
+            name: "Sagum",
+            descr: "An earthly cloak made to\nprotect its user from\nnature elements.\nCommonly worn by ronin\nand autarchy soldiers.",
+            tier: 1,
+            renderable: (
+                glyph: 'T',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "back",
+            ),
+            armor: (
+                defense: 1,
+            ),
+        ),
+        (
+            name: "Hide Gloves",
+            descr: "May your hands be forever warm.",
+            tier: 1,
+            renderable: (
+                glyph: 'G',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "hands",
+            ),
+            armor: (
+                defense: 1,
+            ),
+        ),
+        (
+            name: "Leather Boots",
+            descr: "Trusty footwear.",
+            tier: 1,
+            renderable: (
+                glyph: 'B',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 0,
+            ),
+            equipable: (
+                slot: "feet",
+            ),
+            armor: (
+                defense: 1,
+            ),
+        ),
+
+    ],
+
+    /* Stuff that holds other stuff. */
+    containers: [
+        (
+            name: "Chest",
+            descr: "A plain wood chest.",
+            blocker: true,
+            renderable: (
+                glyph: 'Æ',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 1,
+            ),
+            max_items: 5,
+            tiers: [1, 2], // Quality class of items it can hold. 0 -> Any!
+        ),
+    ],
+
+    /* General things that you may encounter in a map. Mostly aesthetic.*/
+    furnitures: [
+        (
+            name: "Bonfire",
+            descr: "The heat of a bonfire heals\none's soul, while fending\noff the cautious wildlife.",
+            blocker: false,
+            renderable: (
+                glyph: '▲',
+                fg: "BrightRed",
+                bg: "Background",
+                layer: 0,
+            ),
+        )
+    ],
+
+    /* NPCs and such. */
+    mobs: [
+        (
+            name: "Man-Ape",
+            descr: "Millenia living in the\nshadows of strange dark\nplaces took a toll on its\nbody. Primal instincts\ngovern its actions yet\nagain; it may no longer\nbe called a human, but\na feral, pale and\nruby-eyed creature.",
+            mob_type: "Savage",
+            // faction: "man-apes",
+            // default_ai: "hostile",
+            renderable: (
+                glyph: 'm',
+                fg: "BrightRed",
+                bg: "Background",
+                layer: 1,
+            ),
+            fov_range: 15,
+            blocker: true,
+            stats: (
+                hp: 8,
+                max_hp: 8,
+                attack: "1d3+1",
+                attack_range: 0,
+                defense: 1,
+            ),
+            equips: (
+                weapons: ["None", "Flint Axe"],
+                torso: ["None", "Filthy Rags"],
+            ),
+        ),
+        (
+            name: "Guarah",
+            descr: "A long-legged auburn wolf,\ndotted with a careful\nwit that exceeds\nits Canidae siblings.",
+            mob_type: "Wildlife",
+            // faction: "man-apes",
+            // default_ai: "hostile",
+            renderable: (
+                glyph: 'w',
+                fg: "Magenta",
+                bg: "Background",
+                layer: 1,
+            ),
+            fov_range: 20,
+            blocker: true,
+            stats: (
+                hp: 5,
+                max_hp: 5,
+                attack: "1d2+1",
+                attack_range: 0,
+                defense: 0,
+            ),
+        ),
+        (
+            name: "Raccoon",
+            descr: "This furry creature carefully\nwanders the wild while\ncarrying a nut with its\nsmall, dexterous hands.",
+            mob_type: "Wildlife",
+            // faction: "man-apes",
+            // default_ai: "hostile",
+            renderable: (
+                glyph: 'r',
+                fg: "White",
+                bg: "Background",
+                layer: 1,
+            ),
+            fov_range: 20,
+            blocker: true,
+            stats: (
+                hp: 3,
+                max_hp: 3,
+                attack: "1d1",
+                attack_range: 0,
+                defense: 0,
+            ),
+        ),
+
+    ],
+)
