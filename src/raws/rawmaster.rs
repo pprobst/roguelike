@@ -8,7 +8,7 @@ use crate::map_gen::map::MapType;
 use crate::spawner::SpawnTable;
 use crate::utils::colors::color;
 use bracket_lib::prelude::{parse_dice_string, to_cp437, ColorPair, RandomNumberGenerator};
-use specs::prelude::*;
+use legion::*;
 use std::collections::HashMap;
 use std::str::FromStr;
 

@@ -15,7 +15,7 @@ use super::{
     SHOW_MAP,
 };
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

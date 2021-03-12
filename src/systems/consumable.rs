@@ -1,7 +1,7 @@
-use crate::components::{BaseStats, Consumable, ConsumeItem, Inventory, InventoryCapacity, Name};
+use super::*;
+use crate::components::{Player, BaseStats, Consumable, ConsumeItem, Inventory, InventoryCapacity, Name};
 use crate::log::Log;
 use crate::utils::colors::*;
-use specs::prelude::*;
 
 /*
  *
@@ -11,63 +11,46 @@ use specs::prelude::*;
  *
  */
 
-pub struct ConsumableSystem {}
+#[system]
+#[read_component(Name)]
+#[read_component(Player)]
+#[read_component(Consumable)]
+#[write_component(InventoryCapacity)]
+#[write_component(ConsumeItem)]
+#[write_component(BaseStats)]
+#[write_component(Inventory)]
+pub fn consumable(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut Log) {
+    let white = color("BrightWhite", 1.0);
+    let mut inventory_cap = <InventoryCapacity>::query().filter(component::<Player>());
 
-impl<'a> System<'a> for ConsumableSystem {
-    type SystemData = (
-        ReadExpect<'a, Entity>,
-        ReadStorage<'a, Name>,
-        ReadStorage<'a, Consumable>,
-        WriteExpect<'a, Log>,
-        WriteStorage<'a, InventoryCapacity>,
-        WriteStorage<'a, ConsumeItem>,
-        WriteStorage<'a, Inventory>,
-        WriteStorage<'a, BaseStats>,
-    );
+    <(Entity, &ConsumeItem)>::query().iter.for_each(|ent, consume| {
+        let mut has_consumed = false;
+        
+        if let Some(item) = consume.item.get_component::<Consumable>() {
+            let mut target_stats = consume.target.get_component::<BaseStats>().unwrap();
+            target_stats.health.hp = i32::min(
+                target_stats.health.max_hp,
+                target_stats.health.hp + item.heal,
+            );
 
-    fn run(&mut self, data: Self::SystemData) {
-        let (
-            player,
-            name,
-            consumable,
-            mut log,
-            mut capacity,
-            mut to_consume,
-            mut inventory,
-            mut stats,
-        ) = data;
-
-        let mut inventory_cap = capacity.get_mut(*player).unwrap();
-        let white = color("BrightWhite", 1.0);
-
-        for c in to_consume.join() {
-            let mut has_consumed = false;
-
-            if let Some(item) = consumable.get(c.item) {
-                let mut target_stats = stats.get_mut(c.target).unwrap();
-                target_stats.health.hp = i32::min(
-                    target_stats.health.max_hp,
-                    target_stats.health.hp + item.heal,
+            if ecs.entry_ref(*consume.target).unwrap().get_component::<Player>().is_ok() {
+                log.add(
+                    format!(
+                        "You consume the {}, healing {} hp.",
+                        consume.item.get_component::<Name>().unwrap().name,
+                        item.heal
+                    ),
+                    white,
                 );
-                if c.target == *player {
-                    log.add(
-                        format!(
-                            "You consume the {}, healing {} hp.",
-                            name.get(c.item).unwrap().name,
-                            item.heal
-                        ),
-                        white,
-                    );
-                }
-                has_consumed = true;
             }
-
-            if has_consumed {
-                inventory.remove(c.item);
-                inventory_cap.curr -= 1;
-            }
+            has_consumed = true;
         }
 
-        to_consume.clear();
-    }
+        if has_consumed {
+            commands.remove(consume.item);
+            inventory_cap.curr -= 1;
+        }
+
+        commands.remove_component::<ConsumeItem>(ent);
+    });
 }

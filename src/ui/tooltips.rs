@@ -4,7 +4,7 @@ use crate::components::{
 };
 use crate::map_gen::Map;
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

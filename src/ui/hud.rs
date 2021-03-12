@@ -4,7 +4,7 @@ use crate::components::{
 };
 use crate::utils::colors::*;
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

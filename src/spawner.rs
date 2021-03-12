@@ -7,7 +7,7 @@ use super::{
     Inventory, InventoryCapacity, Mob, Name, Player, Position, Remains, Renderable,
 };
 use bracket_lib::prelude::{to_cp437, ColorPair, Point, RandomNumberGenerator};
-use specs::prelude::*;
+use legion::*;
 use std::collections::HashMap;
 
 /*

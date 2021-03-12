@@ -3,7 +3,7 @@ use super::{
 };
 use crate::components::{Equipable, Equipment, Inventory, Name, SelectedItem};
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

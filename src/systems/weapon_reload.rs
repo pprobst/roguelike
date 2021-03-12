@@ -1,7 +1,7 @@
 use crate::components::{AmmoType, Ammunition, Inventory, MissileWeapon, Name, TryReload};
 use crate::log::Log;
 use crate::utils::colors::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

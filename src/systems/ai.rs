@@ -1,56 +1,45 @@
-use crate::components::{Fov, MeleeAttack, Mob, Position};
+use super::*;
+use crate::components::{Player, Fov, MeleeAttack, Mob, Position};
 use crate::map_gen::Map;
 use crate::state::RunState;
 use bracket_lib::prelude::*;
-use specs::prelude::*;
 
 /*
  *
  * ai.rs
  * -----
- * Manages the mobs' AI.
+ * Manages the mobs' AIs.
  *
  */
 
-pub struct HostileAISystem {}
+#[system]
+#[read_component(Fov)]
+#[read_component(Mob)]
+#[read_component(Position)]
+#[read_component(Player)]
+#[read_component(RunState)]
+pub fn hostile_ai(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] map: &mut Map) {
+    let mut ents = <(Entity, &Position, &Mob, &Fov)>::query();
+    let mut player = <(&Position, &Player)>::query();
+    let player_pos = player.iter(ecs).nth(0).unwrap().0;
+    let runstate = <&RunState>::query().iter(ecs).nth(0).unwrap().0;
 
-impl<'a> System<'a> for HostileAISystem {
-    type SystemData = (
-        ReadStorage<'a, Mob>,
-        ReadExpect<'a, Point>,
-        ReadExpect<'a, Entity>,
-        WriteExpect<'a, Map>,
-        WriteStorage<'a, Fov>,
-        WriteStorage<'a, Position>,
-        ReadExpect<'a, RunState>,
-        Entities<'a>,
-        WriteStorage<'a, MeleeAttack>,
-    );
+    if *runstate != RunState::MobTurn {
+        return;
+    }
 
-    fn run(&mut self, data: Self::SystemData) {
-        let (mob, pt, player, mut map, mut fov, mut pos, runstate, entities, mut melee_attack) =
-            data;
-        let ppos = *pt;
-        let map = &mut *map;
-
-        if *runstate != RunState::MobTurn {
-            return;
+    ents.iter(ecs).for_each(|(entity, pos, _, fov)| {
+        let d = DistanceAlg::Pythagoras.distance2d(Point::new(pos.x, pos.y), player_pos);
+        if d < 1.2 {
+            commands.buffer.push((), MeleeAttack{
+                target: *player
+            });
         }
-
-        for (_mob, mut fov, mut pos, ent) in (&mob, &mut fov, &mut pos, &entities).join() {
-            let d = DistanceAlg::Pythagoras.distance2d(Point::new(pos.x, pos.y), ppos);
-            if d < 1.5 {
-                melee_attack
-                    .insert(ent, MeleeAttack { target: *player })
-                    .expect("Melee attack insertion failed");
-            }
-            // https://github.com/thebracket/bracket-lib/blob/master/bracket-pathfinding/examples/astar/main.rs
-            else if fov.visible_pos.contains(&ppos) {
+        else if fov.visible_pos.contains(&player_pos) {
                 // TODO: if has missile weapon w/ ammo, first try missile attack while fleeing; else chase player.
                 let mob_location = map.idx(pos.x, pos.y);
-                let player_location = map.idx(ppos.x, ppos.y);
+                let player_location = map.idx(player_pos.x, player_pos.y);
                 let a_star = a_star_search(mob_location, player_location, map);
-
                 if a_star.success && a_star.steps.len() > 1 {
                     // Previous position is now unblocked.
                     map.clear_blocker(pos.x, pos.y);
@@ -60,6 +49,5 @@ impl<'a> System<'a> for HostileAISystem {
                     fov.dirty = true;
                 }
             }
-        }
-    }
+    });
 }

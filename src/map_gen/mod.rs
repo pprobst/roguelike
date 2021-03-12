@@ -2,7 +2,7 @@ use super::{Point, Position};
 use crate::raws::RAWS;
 use crate::spawner::*;
 use bracket_lib::prelude::RandomNumberGenerator;
-use specs::prelude::World;
+use legion::World;
 use std::collections::HashSet;
 
 pub mod tile;

@@ -1,5 +1,5 @@
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+pub use legion::*;
 
 mod common;
 mod state;
@@ -58,7 +58,8 @@ fn main() -> BError {
     rexloader::load_dungeons();
     raws::load_raws();
 
-    let mut world = World::new();
+    /*
+    let mut world = World::default();
 
     // Register the components (see components.rs).
     world.register::<Position>();
@@ -131,6 +132,7 @@ fn main() -> BError {
 
     // Insert the Log into the ECS.
     game_state.ecs.insert(log::Log::new());
+    */
 
-    bracket_lib::prelude::main_loop(term, game_state)
+    bracket_lib::prelude::main_loop(term, State::new())
 }

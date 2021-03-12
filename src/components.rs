@@ -1,6 +1,5 @@
 use crate::utils::directions::Direction;
 use bracket_lib::prelude::{to_cp437, ColorPair, Point, RGB};
-use specs::{prelude::*, Component};
 use std::ops::{Add, AddAssign, Sub};
 use strum_macros::EnumString;
 //use std::collections::HashSet;
@@ -46,7 +45,7 @@ impl Sub<Direction> for Point {
     }
 }
 
-#[derive(Component, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Renderable {
     pub glyph: u16,
     pub color: ColorPair,
@@ -63,7 +62,6 @@ impl Renderable {
     }
 }
 
-#[derive(Component)]
 pub struct Player {}
 
 #[derive(EnumString, Debug)]
@@ -92,29 +90,27 @@ impl std::str::FromStr for MobType {
 }
 */
 
-#[derive(Component)]
 // Enemies & NPCs.
 pub struct Mob {
     pub mob_type: MobType,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Name {
     pub name: String,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Description {
     pub descr: String,
 }
 
-#[derive(Component)]
 pub struct InventoryCapacity {
     pub max: u8,
     pub curr: u8,
 }
 
-#[derive(Component, PartialEq)]
+#[derive(PartialEq)]
 // An entity's field of view (fov).
 pub struct Fov {
     pub range: i32,
@@ -122,12 +118,11 @@ pub struct Fov {
     pub dirty: bool,
 }
 
-#[derive(Component)]
 // Entities with this component will "block" movement over them.
 // After all, you can't walk over enemies (unless you're flying!).
 pub struct Blocker {}
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Attack {
     pub base_damage: String,
     pub dice_n: i32,
@@ -136,13 +131,13 @@ pub struct Attack {
     pub range: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Health {
     pub max_hp: i32,
     pub hp: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct BaseStats {
     pub health: Health,
     pub defense: i32,
@@ -150,7 +145,6 @@ pub struct BaseStats {
     pub god: bool, // Doesn't die
 }
 
-#[derive(Component)]
 pub struct SufferDamage {
     pub amount: Vec<(i32, bool)>,
 }
@@ -175,12 +169,10 @@ impl SufferDamage {
     }
 }
 
-#[derive(Component)]
 pub struct MeleeAttack {
     pub target: Entity,
 }
 
-#[derive(Component)]
 pub struct MissileAttack {
     pub target: Entity,
 }
@@ -192,7 +184,6 @@ pub enum MeleeWeaponClass {
     Axe,
 }
 
-#[derive(Component)]
 pub struct MeleeWeapon {
     pub stats: Attack,
     pub class: MeleeWeaponClass,
@@ -205,7 +196,6 @@ pub enum AmmoType {
     _9mm,
 }
 
-#[derive(Component)]
 pub struct Ammunition {
     pub max_ammo: i32,
     pub ammo: i32,
@@ -220,22 +210,18 @@ pub enum MissileWeaponClass {
     Grenade,
 }
 
-#[derive(Component)]
 pub struct MissileWeapon {
     pub stats: Attack,
     pub class: MissileWeaponClass,
     pub ammo: Ammunition,
 }
 
-#[derive(Component)]
 pub struct ActiveWeapon {}
 
-#[derive(Component)]
 pub struct TryReload {
     pub weapon: Entity,
 }
 
-#[derive(Component)]
 pub struct Target {
     pub covered: bool,
 }
@@ -253,43 +239,42 @@ pub enum EquipSlot {
     Floating,
 }
 
-#[derive(Component, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Equipable {
     pub slot: EquipSlot,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Equipment {
     pub user: Entity,
     pub equip: Entity,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct TryEquip {
     pub equipment: Equipment,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct TryUnequip {
     pub equipment: Equipment,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Armor {
     pub defense: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Item {
     pub tier: u8,
 }
 
-#[derive(Component)]
 pub struct Consumable {
     pub heal: i32,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct CollectItem {
     pub collects: Vec<(Entity, Entity)>,
 }
@@ -313,43 +298,42 @@ impl CollectItem {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct DropItem {
     pub dropper: Entity,
     pub item: Entity,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct ConsumeItem {
     pub target: Entity,
     pub item: Entity,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Inventory {
     pub owner: Entity,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct SelectedItem {
     pub item: Entity,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct SelectedPosition {
     pub pos: Position,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Remains {} // The remains of a dead mob.
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Container {
     pub tiers: Vec<u8>,
     pub max_items: u8,
 }
 
-#[derive(Component)]
 pub struct Contained {
     // Similar to Inventory, but specifically for containers.
     pub container: Entity,

@@ -1,6 +1,6 @@
 use super::{log::Log, spawner::spawn_remains, BaseStats, Inventory, Name, Player, Position};
 use crate::utils::colors::*;
-use specs::prelude::*;
+pub use legion::*;
 
 /*
  *

@@ -1,7 +1,7 @@
 use crate::components::{CollectItem, Contained, Inventory, InventoryCapacity, Name, Position};
 use crate::log::Log;
 use crate::utils::colors::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

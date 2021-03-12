@@ -2,7 +2,7 @@ use super::{get_tile_function, CustomRegion, Tile, TileType};
 use crate::components::Position;
 use crate::utils::directions::*;
 use bracket_lib::prelude::*;
-use specs::prelude::Entity;
+use legion::Entity;
 use strum_macros::Display;
 
 /*

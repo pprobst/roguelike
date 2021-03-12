@@ -3,7 +3,7 @@ use crate::components::{CollectItem, Contained, Container, Name, SelectedPositio
 use crate::map_gen::Map;
 use crate::utils::colors::*;
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+use legion::*;
 use std::collections::HashMap;
 
 /*

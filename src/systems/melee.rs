@@ -4,7 +4,7 @@ use crate::components::{
 use crate::log::Log;
 use crate::utils::colors::*;
 use bracket_lib::prelude::RandomNumberGenerator;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

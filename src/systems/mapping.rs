@@ -1,6 +1,6 @@
 use crate::components::{Blocker, Position, Remains};
 use crate::map_gen::Map;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *

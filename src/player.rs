@@ -8,7 +8,7 @@ use super::{
 use crate::log::Log;
 use crate::utils::colors::*;
 use bracket_lib::prelude::*;
-use specs::prelude::*;
+use legion::*;
 use std::cmp::Ordering;
 
 /*

@@ -1,5 +1,5 @@
 use super::{EquipSlot, Equipable};
-use specs::prelude::*;
+pub use legion::*;
 
 /*
  *

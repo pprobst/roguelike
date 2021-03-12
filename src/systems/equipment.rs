@@ -3,7 +3,7 @@ use crate::components::{
 };
 use crate::log::Log;
 use crate::utils::colors::*;
-use specs::prelude::*;
+use legion::*;
 
 /*
  *
