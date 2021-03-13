@@ -31,7 +31,7 @@ pub fn hostile_ai(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] map:
     ents.iter(ecs).for_each(|(entity, pos, _, fov)| {
         let d = DistanceAlg::Pythagoras.distance2d(Point::new(pos.x, pos.y), player_pos);
         if d < 1.2 {
-            commands.buffer.push((), MeleeAttack{
+            commands.push((), MeleeAttack{
                 target: *player
             });
         }

@@ -1,6 +1,6 @@
+use super::*;
 use crate::components::{Blocker, Position, Remains};
 use crate::map_gen::Map;
-use legion::*;
 
 /*
  *
@@ -10,34 +10,21 @@ use legion::*;
  *
  */
 
-pub struct MappingSystem {}
+#[system]
+#[read_component(Position)]
+#[read_component(Blocker)]
+#[read_component(Remains)]
+pub fn mapping(ecs: &SubWorld, #[resource] map: &mut Map) {
+    map.refresh_entities();
 
-impl<'a> System<'a> for MappingSystem {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, Position>,
-        ReadStorage<'a, Blocker>,
-        ReadStorage<'a, Remains>,
-        WriteExpect<'a, Map>,
-    );
+    <(Entity, &Position, &Blocker)>::query().iter.for_each(|ent, pos, _| {
+        map.add_blocker(pos.x, pos.y);
+        let i = map.idx(pos.x, pos.y);
+        map.add_entity(ent.clone(), i);
+    });
 
-    fn run(&mut self, data: Self::SystemData) {
-        let (entities, pos, blockers, remains, mut map) = data;
-        let map = &mut *map;
-
-        map.refresh_entities();
-
-        // Iterate through all the entities that have a Position and are Blockers.
-        for (ent, pos, _blocker) in (&entities, &pos, &blockers).join() {
-            map.add_blocker(pos.x, pos.y);
-            let i = map.idx(pos.x, pos.y);
-            map.add_entity(ent.clone(), i);
-        }
-
-        // Iterate through all the remains.
-        for (ent, pos, _remains) in (&entities, &pos, &remains).join() {
-            let i = map.idx(pos.x, pos.y);
-            map.add_entity(ent.clone(), i);
-        }
-    }
+    <(Entity, &Position, &Remains)>::query().iter.for_each(|ent, pos, _| {
+        let i = map.idx(pos.x, pos.y);
+        map.add_entity(ent.clone(), i);
+    });
 }

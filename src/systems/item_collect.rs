@@ -1,7 +1,7 @@
-use crate::components::{CollectItem, Contained, Inventory, InventoryCapacity, Name, Position};
+use super::*;
+use crate::components::{Player, CollectItem, Contained, Inventory, InventoryCapacity, Name, Position};
 use crate::log::Log;
 use crate::utils::colors::*;
-use legion::*;
 
 /*
  *
@@ -11,56 +11,36 @@ use legion::*;
  *
  */
 
-pub struct ItemCollectSystem {}
+#[system]
+#[read_component(Player)]
+#[read_component(Name)]
+#[write_component(InventoryCapacity)]
+#[write_component(Position)]
+#[write_component(CollectItem)]
+#[write_component(Inventory)]
+#[write_component(Contained)]
+pub fn item_collect(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut Log) {
+    let white = color("BrightWhite", 1.0);
+    let magenta = color("Magenta", 1.0);
+    let mut player = <&Player>::query();
+    let mut inventory_cap = <InventoryCapacity>::query().filter(component::<Player>());
 
-impl<'a> System<'a> for ItemCollectSystem {
-    type SystemData = (
-        ReadExpect<'a, Entity>,
-        ReadStorage<'a, Name>,
-        WriteExpect<'a, Log>,
-        WriteStorage<'a, InventoryCapacity>,
-        WriteStorage<'a, Position>,
-        WriteStorage<'a, CollectItem>,
-        WriteStorage<'a, Inventory>,
-        WriteStorage<'a, Contained>,
-    );
-
-    fn run(&mut self, data: Self::SystemData) {
-        let (
-            player,
-            name,
-            mut log,
-            mut capacity,
-            mut pos,
-            mut collect,
-            mut inventory,
-            mut contained,
-        ) = data;
-
-        let white = color("BrightWhite", 1.0);
-        let magenta = color("Magenta", 1.0);
-
-        let mut inventory_cap = capacity.get_mut(*player).unwrap();
-        for p in collect.join() {
-            for c in p.collects.iter() {
-                if inventory_cap.curr == inventory_cap.max && c.1 == *player {
-                    log.add(format!("Your inventory is full!"), magenta);
-                    break;
-                }
-                inventory
-                    .insert(c.0, Inventory { owner: c.1 })
-                    .expect("FAILED to insert item in backpack.");
-                if c.1 == *player {
-                    log.add(
-                        format!("You pick up {}.", name.get(c.0).unwrap().name),
-                        white,
-                    );
-                }
-                pos.remove(c.0);
-                contained.remove(c.0);
-                inventory_cap.curr += 1;
+    <(Entity, &CollectItem)>::query().iter.for_each(|ent, collects| {
+        for c in collects.iter() {
+            if inventory_cap.curr == inventory_cap.max && c.1 == *player {
+                log.add(format!("Your inventory is full!"), magenta);
+                break;
+            } 
+            commands.add_component(c.0, Inventory { owner: c.1 });
+            if c.1 == *player {
+                log.add(
+                    format!("You pick up {}.", c.0.get_component::<Name>().unwrap().name), 
+                            white,
+                );
             }
+            commands.remove_component::<CollectItem>(ent);
+            commands.remove_component::<Position>(c.0);
+            inventory_cap.curr += 1;
         }
-        collect.clear();
-    }
+    });
 }
