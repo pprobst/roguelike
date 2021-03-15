@@ -49,7 +49,7 @@ fn main() -> BError {
         .with_font("Anikki-square-16x16.png", 16, 16)
         .with_simple_console(WINDOW_WIDTH, WINDOW_HEIGHT, "Sapphos-square-16x16.png")
         .with_sparse_console(WINDOW_WIDTH, WINDOW_HEIGHT, "Anikki-square-16x16.png")
-        .with_fps_cap(60.0)
+        .with_fps_cap(30.0)
         .build()?;
 
     //term.post_scanlines = true;

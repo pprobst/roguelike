@@ -1,7 +1,7 @@
-use crate::components::{AmmoType, Ammunition, Inventory, MissileWeapon, Name, TryReload};
+use super::*;
+use crate::components::{Player, AmmoType, Ammunition, Inventory, MissileWeapon, Name, TryReload};
 use crate::log::Log;
 use crate::utils::colors::*;
-use legion::*;
 
 /*
  *
@@ -11,50 +11,41 @@ use legion::*;
  *
  */
 
-pub struct WeaponReloadSystem {}
+#[system]
+#[read_component(Inventory)]
+#[read_component(Name)]
+#[write_component(MissileWeapon)]
+#[write_component(TryReload)]
+#[write_component(Ammunition)]
+pub fn weapon_reload(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut Log) {
+    let player = <(Entity, &Player)>::query()
+                 .iter(ecs)
+                 .find_map(|(entity, _player)| Some(*entity))
+                 .unwrap();
+    let ent_inventory = <(Entity, &Inventory)>::query();
 
-impl<'a> System<'a> for WeaponReloadSystem {
-    type SystemData = (
-        Entities<'a>,
-        WriteStorage<'a, MissileWeapon>,
-        WriteStorage<'a, TryReload>,
-        ReadStorage<'a, Inventory>,
-        WriteStorage<'a, Ammunition>,
-        ReadExpect<'a, Entity>,
-        WriteExpect<'a, Log>,
-        ReadStorage<'a, Name>,
-    );
+    <(Entity, &TryReload)>::query().iter(ecs).for_each(|(ent, reload)| {
+        commands.remove_component::<TryReload>(*ent);
 
-    fn run(&mut self, data: Self::SystemData) {
-        let (
-            entities,
-            mut missile_weapon,
-            mut try_reload,
-            inventory,
-            mut ammo,
-            player,
-            mut log,
-            names,
-        ) = data;
-
-        for (ent, reload) in (&entities, &try_reload).join() {
-            if let Some(w) = missile_weapon.get_mut(reload.weapon) {
+        let reload_weapon = ecs.entry_ref(reload.weapon);
+        if let Ok(reload_weapon) = reload_weapon {
+            if let Ok(w) = reload_weapon.get_component::<MissileWeapon>() {
                 let ammo_type = &w.ammo.ammo_type;
-                for (e, _inv) in (&entities, &inventory).join() {
-                    if let Some(amm) = ammo.get_mut(e) {
+                ent_inventory.iter(ecs).for_each(|(e, _)| {
+                    if let Ok(amm) = ecs.entry_ref(*e).unwrap().get_component::<Ammunition>() {
                         if amm.ammo_type == *ammo_type && amm.ammo > 0 {
                             match ammo_type {
                                 AmmoType::_32 => {
                                     amm.ammo -= 1;
                                     if amm.ammo == 0 {
-                                        entities.delete(e).ok();
+                                        commands.remove(*e);
                                     }
                                     w.ammo.ammo += 1;
-                                    if ent == *player {
+                                    if ent == &player {
                                         log.add(
                                             format!(
                                                 "You reload the {}.",
-                                                names.get(reload.weapon).unwrap().name
+                                                reload_weapon.get_component::<Name>().unwrap().name,
                                             ),
                                             color("BrightWhite", 1.0),
                                         );
@@ -64,9 +55,8 @@ impl<'a> System<'a> for WeaponReloadSystem {
                             }
                         }
                     }
-                }
+                });
             }
         }
-        try_reload.clear();
-    }
+    });
 }

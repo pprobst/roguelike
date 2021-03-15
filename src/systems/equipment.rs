@@ -1,9 +1,9 @@
+use super::*;
 use crate::components::{
-    ActiveWeapon, Equipable, Equipment, Inventory, InventoryCapacity, Name, TryEquip, TryUnequip,
+    Player, ActiveWeapon, Equipable, Equipment, Inventory, InventoryCapacity, Name, TryEquip, TryUnequip,
 };
 use crate::log::Log;
 use crate::utils::colors::*;
-use legion::*;
 
 /*
  *
@@ -13,107 +13,71 @@ use legion::*;
  *
  */
 
-pub struct EquipmentSystem {}
+#[system]
+#[read_component(Name)]
+#[read_component(Equipable)]
+#[write_component(Equipment)]
+#[write_component(InventoryCapacity)]
+#[write_component(Inventory)]
+#[write_component(TryEquip)]
+#[write_component(TryUnequip)]
+#[write_component(ActiveWeapon)]
+pub fn equipment(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut Log) {
+    let white = color("BrightWhite", 1.0);
+    let player = <&Player>::query();
+    let mut inventory_cap = <InventoryCapacity>::query().filter(component::<Player>());
+    let already_equipped = <(&Equipment, &Name, &Equipable)>::query();
 
-impl<'a> System<'a> for EquipmentSystem {
-    type SystemData = (
-        ReadExpect<'a, Entity>,
-        ReadStorage<'a, Name>,
-        WriteStorage<'a, Equipment>,
-        WriteExpect<'a, Log>,
-        ReadStorage<'a, Equipable>,
-        WriteStorage<'a, InventoryCapacity>,
-        WriteStorage<'a, Inventory>,
-        WriteStorage<'a, TryEquip>,
-        WriteStorage<'a, TryUnequip>,
-        WriteStorage<'a, ActiveWeapon>,
-    );
+    <(Entity, TryEquip)>::query().iter(ecs).for_each(|ent, e| {
+        commands.remove_component::<TryEquip>(ent);
 
-    fn run(&mut self, data: Self::SystemData) {
-        let (
-            player,
-            name,
-            mut equips,
-            mut log,
-            equipable,
-            mut capacity,
-            mut inventory,
-            mut try_equip,
-            mut try_unequip,
-            mut active_wpn,
-        ) = data;
+        let to_equip_slot = e.equipment.equip.get_component::<Equipable>().unwrap().slot;
+        let to_equip_name = e.equipment.equip.get_component::<Name>().unwrap().name;
+        let to_equip_user = e.equipment.user;
+        let mut to_unequip: Vec<Entity> = Vec::new();
 
-        let mut inventory_cap = capacity.get_mut(*player).unwrap();
-        let white = color("BrightWhite", 1.0);
-
-        for e in try_equip.join() {
-            let to_equip_slot = &equipable.get(e.equipment.equip).unwrap().slot;
-            let to_equip_name = &name.get(e.equipment.equip).unwrap().name;
-            let to_equip_user = e.equipment.user;
-            let mut to_unequip: Vec<Entity> = Vec::new();
-
-            // Iterate through all already equipped itens.
-            for (equip, name, equipab) in (&equips, &name, &equipable).join() {
-                if equipab.slot == *to_equip_slot && equip.user == to_equip_user {
-                    to_unequip.push(equip.equip);
-                    if equip.user == *player {
-                        log.add(format!("You unequip {}.", name.name), white);
-                    }
+        already_equipped.iter(ecs).for_each(|equip, name, equipab| {
+            if equipab.slot == *to_equip_slot && equip.user == to_equip_user {
+                to_unequip.push(equip.equip);
+                if equip.user == *player {
+                    log.add(format!("You unequip {}.", name.name), white);
                 }
             }
-            for ue in to_unequip {
-                if let Some(_t) = active_wpn.get(ue) {
-                    active_wpn.clear();
-                }
-                equips.remove(ue);
-                inventory
-                    .insert(
-                        ue,
-                        Inventory {
-                            owner: to_equip_user,
-                        },
-                    )
-                    .expect("FAILED inserting item in inventory.");
+        });
+
+        for ue in to_unequip {
+            if let Some(_t) = ue.get_component::<ActiveWeapon>() {
+                commands.remove_component::<ActiveWeapon>(ue);
+            }
+            commands.remove_component::<Equipment>(ue);
+            commands.add_component(*ue, Inventory { owner: to_equip_user });
+            inventory_cap.curr += 1;
+        }
+        commands.remove_component::<Inventory>(e.equipment.equip);
+        inventory_cap.curr -= 1;
+        commands.add_component(e.equipment.equip, Equipment { user: to_equip_user, equip: e.equipment.equip });
+
+        if to_equip_user == *player {
+            log.add(format!("You equip {}.", to_equip_name), white);
+        }
+    });
+
+    <(Entity, TryUnequip)>::query().iter(ecs).for_each(|ent, e| {
+        commands.remove_component::<TryUnequip>(ent);
+
+        let to_unequip = e.equipment.equip;
+        if let Some(_t) = to_unequip.get_component::<ActiveWeapon>() {
+            commands.remove_component::<ActiveWeapon>(to_unequip);
+        }
+        if let Some(_e) = to_unequip.get_component::<Equipable>() {
+            commands.remove_component::<Equipment>(to_unequip);
+            if to_unequip.get_component::<Inventory>().is_none() {
+                println!("EQUIP: {:?}", to_unequip);
+                commands.add_component(to_unequip, Inventory {owner: *player });
                 inventory_cap.curr += 1;
-            }
-            inventory.remove(e.equipment.equip);
-            inventory_cap.curr -= 1;
-            equips
-                .insert(
-                    e.equipment.equip,
-                    Equipment {
-                        user: to_equip_user,
-                        equip: e.equipment.equip,
-                    },
-                )
-                .expect("FAILED equipping item.");
-
-            if to_equip_user == *player {
-                log.add(format!("You equip {}.", to_equip_name), white);
+            } else {
+                commands.remove_component::<Inventory>(to_unequip);
             }
         }
-
-        try_equip.clear();
-
-        for e in try_unequip.join() {
-            let to_unequip = e.equipment.equip;
-            if let Some(_t) = active_wpn.get(to_unequip) {
-                active_wpn.clear();
-            }
-            if let Some(_e) = equipable.get(to_unequip) {
-                equips.remove(to_unequip);
-                if inventory.get(to_unequip).is_none() {
-                    println!("EQUIP: {:?}", to_unequip);
-                    inventory
-                        .insert(to_unequip, Inventory { owner: *player })
-                        .expect("FAILED inserting item in inventory.");
-                    inventory_cap.curr += 1;
-                } else {
-                    inventory.remove(to_unequip);
-                }
-            }
-        }
-
-        try_unequip.clear();
-    }
+    });
 }

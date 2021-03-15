@@ -26,7 +26,7 @@ pub fn item_collect(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] lo
     let player = <&Player>::query();
     let mut inventory_cap = <InventoryCapacity>::query().filter(component::<Player>());
 
-    <(Entity, &DropItem)>::query().iter.for_each(|ent, drop| {
+    <(Entity, &DropItem)>::query().iter(ecs).for_each(|ent, drop| {
         let drop_pos = drop.dropper.get_component::<Position>().unwrap();
         commands.add_component(drop.item, Position::new(drop_pos.x, drop_pos.y));
         

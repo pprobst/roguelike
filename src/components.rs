@@ -1,3 +1,4 @@
+use legion::{Entity, systems::CommandBuffer};
 use crate::utils::directions::Direction;
 use bracket_lib::prelude::{to_cp437, ColorPair, Point, RGB};
 use std::ops::{Add, AddAssign, Sub};
@@ -150,22 +151,24 @@ pub struct SufferDamage {
 }
 
 impl SufferDamage {
-    pub fn add_damage(
-        dmg_store: &mut WriteStorage<SufferDamage>,
+    pub fn new_damage(
+        commands: &CommandBuffer,
         victim: Entity,
         amount: i32,
         from_player: bool,
     ) {
-        if let Some(suffering) = dmg_store.get_mut(victim) {
-            suffering.amount.push((amount, from_player));
-        } else {
-            let dmg = SufferDamage {
-                amount: vec![(amount, from_player)],
+        commands.exec_mut(move |world| {
+            let mut dmg = if let Some(suffering) = world.get_component::<SufferDamage>(victim) {
+                (*suffering).clone()
+            } else {
+                SufferDamage { amount: Vec::new() }
             };
-            dmg_store
-                .insert(victim, dmg)
+
+            dmg.amount.push((amount, from_player));
+            world
+                .add_component(victim, dmg)
                 .expect("Unable to insert damage");
-        }
+        });
     }
 }
 
@@ -281,20 +284,22 @@ pub struct CollectItem {
 
 impl CollectItem {
     pub fn add_collect(
-        item_store: &mut WriteStorage<CollectItem>,
+        commands: &CommandBuffer,
         item: Entity,
         collector: Entity,
     ) {
-        if let Some(collecting) = item_store.get_mut(collector) {
-            collecting.collects.push((item, collector));
-        } else {
-            let itm = CollectItem {
-                collects: vec![(item, collector)],
-            };
-            item_store
-                .insert(collector, itm)
-                .expect("Unable to insert item");
-        }
+        commands.exec_mut(move |world| {
+            if let Some(collecting) = world.get_component::<CollectItem>(collector) {
+                collecting.collects.push((item, collector));
+            } else {
+                let itm = CollectItem {
+                    collects: vec![(item, collector)],
+                };
+                world
+                    .add_component(collector, itm)
+                    .expect("Unable to insert item");
+            }
+        });
     }
 }
 

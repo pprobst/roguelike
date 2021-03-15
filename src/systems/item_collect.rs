@@ -25,7 +25,7 @@ pub fn item_collect(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] lo
     let mut player = <&Player>::query();
     let mut inventory_cap = <InventoryCapacity>::query().filter(component::<Player>());
 
-    <(Entity, &CollectItem)>::query().iter.for_each(|ent, collects| {
+    <(Entity, &CollectItem)>::query().iter(ecs).for_each(|ent, collects| {
         for c in collects.iter() {
             if inventory_cap.curr == inventory_cap.max && c.1 == *player {
                 log.add(format!("Your inventory is full!"), magenta);

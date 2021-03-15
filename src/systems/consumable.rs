@@ -23,7 +23,7 @@ pub fn consumable(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log:
     let white = color("BrightWhite", 1.0);
     let mut inventory_cap = <InventoryCapacity>::query().filter(component::<Player>());
 
-    <(Entity, &ConsumeItem)>::query().iter.for_each(|ent, consume| {
+    <(Entity, &ConsumeItem)>::query().iter(ecs).for_each(|ent, consume| {
         let mut has_consumed = false;
         
         if let Some(item) = consume.item.get_component::<Consumable>() {
