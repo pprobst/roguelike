@@ -20,20 +20,23 @@ use bracket_lib::prelude::*;
 #[read_component(RunState)]
 pub fn hostile_ai(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] map: &mut Map) {
     let mut ents = <(Entity, &Position, &Mob, &Fov)>::query();
-    let mut player = <(&Position, &Player)>::query();
-    let player_pos = player.iter(ecs).nth(0).unwrap().0;
-    let runstate = <&RunState>::query().iter(ecs).nth(0).unwrap().0;
+    let player = <(&Entity, &Player)>::query()
+                 .iter(ecs)
+                 .find_map(|(entity, _player)| Some(*entity))
+                 .unwrap();
+    let player_pos = ecs.entry_ref(player).unwrap().get_component::<Position>().unwrap();
+    let runstate = <&RunState>::query().iter(ecs).nth(0).unwrap();
 
     if *runstate != RunState::MobTurn {
         return;
     }
 
     ents.iter(ecs).for_each(|(entity, pos, _, fov)| {
-        let d = DistanceAlg::Pythagoras.distance2d(Point::new(pos.x, pos.y), player_pos);
+        let d = DistanceAlg::Pythagoras.distance2d(Point::new(pos.x, pos.y), *player_pos);
         if d < 1.2 {
-            commands.push((), MeleeAttack{
-                target: *player
-            });
+            commands.push(((), MeleeAttack{
+                target: player
+            }));
         }
         else if fov.visible_pos.contains(&player_pos) {
                 // TODO: if has missile weapon w/ ammo, first try missile attack while fleeing; else chase player.

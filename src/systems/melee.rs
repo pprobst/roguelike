@@ -24,21 +24,25 @@ use bracket_lib::prelude::RandomNumberGenerator;
 #[write_component(SufferDamage)]
 pub fn melee(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut Log, #[resource] rng: &mut RandomNumberGenerator) {
     let white = color("BrightWhite", 1.0);
-    let active_melee_wpn = <(&ActiveWeapon, &MeleeWeapon, &Equipment, &Name)>::query();
-    let player = <&Player>::query();
+    let active_melee_wpn = <(&ActiveWeapon, &MeleeWeapon, &Equipment, &Name)>::query().filter(component::<Player>());
+    let player = <(Entity, &Player)>::query()
+                .iter(ecs)
+                .find_map(|(entity, _player)| Some(*entity))
+                .unwrap();
 
-    <(Entity, &MeleeAttack, &BaseStats, &Name)>::query().iter(ecs).for_each(|ent, melee, attacker_stats, name| {
-        commands.remove_component::<MeleeAttack>(ent);
+    <(Entity, &MeleeAttack, &BaseStats, &Name)>::query().iter(ecs).for_each(|(ent, melee, attacker_stats, name)| {
+        commands.remove_component::<MeleeAttack>(*ent);
 
         let attacker_hp = attacker_stats.health.hp;
-        let victim_stats = melee.target.get_components::<BaseStats>().unwrap();
+        let melee_target = ecs.entry_ref(melee.target).unwrap();
+        let victim_stats = melee_target.get_component::<BaseStats>().unwrap();
         let victim_hp = victim_stats.health.hp;
-        let victim_name = melee.target.get_components::<Name>().unwrap();
+        let victim_name = melee_target.get_component::<Name>().unwrap();
         let mut has_weapon_equipped = false;
 
         if attacker_hp > 0 && victim_hp > 0 {
-            active_melee_wpn.iter(ecs).for_each(|_, melee_wpn, equip, name_wpn| {
-                if equip.user == ent {
+            active_melee_wpn.iter(ecs).for_each(|(_, melee_wpn, equip, name_wpn)| {
+                if equip.user == *ent {
                     has_weapon_equipped = true;
                     let wpn_stats = &melee_wpn.stats;
                     let total_intended_damage = rng.roll_dice(wpn_stats.dice_n, wpn_stats.dice_faces) + wpn_stats.dice_bonus;
@@ -48,8 +52,7 @@ pub fn melee(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut
                                 &name.name, &victim_name.name, &name_wpn.name, damage),
                                 white,
                     );
-                    SufferDamage::add_damage(&commands, melee.target, damage, ent == *player);
-                    break;
+                    SufferDamage::add_damage(&commands, melee.target, damage, *ent == player);
                 }
             });
             if !has_weapon_equipped {
@@ -87,7 +90,7 @@ pub fn melee(ecs: &SubWorld, commands: &mut CommandBuffer, #[resource] log: &mut
                     &commands,
                     melee.target,
                     damage,
-                    ent == *player,
+                    *ent == player,
                 );
             }
         }

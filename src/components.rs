@@ -151,13 +151,13 @@ pub struct SufferDamage {
 }
 
 impl SufferDamage {
-    pub fn new_damage(
+    pub fn add_damage(
         commands: &CommandBuffer,
         victim: Entity,
         amount: i32,
         from_player: bool,
     ) {
-        commands.exec_mut(move |world| {
+        commands.exec_mut(move |world, _| {
             let mut dmg = if let Some(suffering) = world.get_component::<SufferDamage>(victim) {
                 (*suffering).clone()
             } else {
@@ -288,7 +288,7 @@ impl CollectItem {
         item: Entity,
         collector: Entity,
     ) {
-        commands.exec_mut(move |world| {
+        commands.exec_mut(move |world, _| {
             if let Some(collecting) = world.get_component::<CollectItem>(collector) {
                 collecting.collects.push((item, collector));
             } else {

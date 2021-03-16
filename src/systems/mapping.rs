@@ -17,13 +17,13 @@ use crate::map_gen::Map;
 pub fn mapping(ecs: &SubWorld, #[resource] map: &mut Map) {
     map.refresh_entities();
 
-    <(Entity, &Position, &Blocker)>::query().iter(ecs).for_each(|ent, pos, _| {
+    <(Entity, &Position, &Blocker)>::query().iter(ecs).for_each(|(ent, pos, _)| {
         map.add_blocker(pos.x, pos.y);
         let i = map.idx(pos.x, pos.y);
         map.add_entity(ent.clone(), i);
     });
 
-    <(Entity, &Position, &Remains)>::query().iter(ecs).for_each(|ent, pos, _| {
+    <(Entity, &Position, &Remains)>::query().iter(ecs).for_each(|(ent, pos, _)| {
         let i = map.idx(pos.x, pos.y);
         map.add_entity(ent.clone(), i);
     });
