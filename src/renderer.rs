@@ -1,6 +1,6 @@
 use super::{
     map_gen::Map, raws::*, ui::*, utils::colors::*, Name, Position, Remains, Renderable, RunState,
-    Target, WINDOW_HEIGHT, WINDOW_WIDTH, X_OFFSET, Y_OFFSET,
+    Target, Player, WINDOW_HEIGHT, WINDOW_WIDTH, X_OFFSET, Y_OFFSET,
 };
 use bracket_lib::prelude::*;
 use legion::*;
@@ -14,17 +14,18 @@ use legion::*;
  */
 
 pub struct Renderer<'a> {
-    pub ecs: &'a World,
+    pub ecs: &'a mut World,
+    pub resources: &'a mut Resources,
     pub term: &'a mut BTerm,
     pub state: RunState,
 }
 
-pub fn render_all(ecs: &World, term: &mut BTerm, state: RunState, show_map: bool, in_menu: bool) {
-    Renderer { ecs, term, state }.render_all(show_map, in_menu)
+pub fn render_all(ecs: &mut World, resources: &mut Resources, term: &mut BTerm, state: RunState, show_map: bool, in_menu: bool) {
+    Renderer { ecs, resources, term, state }.render_all(show_map, in_menu)
 }
 
-pub fn reload_colors(ecs: &World, term: &mut BTerm, state: RunState) {
-    Renderer { ecs, term, state }.reload_colors()
+pub fn reload_colors(ecs: &mut World, resources: &mut Resources, term: &mut BTerm, state: RunState) {
+    Renderer { ecs, resources, term, state }.reload_colors()
 }
 
 impl<'a> Renderer<'a> {
@@ -319,17 +320,17 @@ impl<'a> Renderer<'a> {
     }
 
     pub fn reload_colors(&mut self) {
-        let mut map = self.ecs.fetch_mut::<Map>();
+        let mut map = self.resources.get_mut::<Map>().unwrap();
 
         map.reload_tile_colors();
 
-        let mut renderables = self.ecs.write_storage::<Renderable>();
-        let entities = self.ecs.entities();
-        let names = self.ecs.read_storage::<Name>();
-        let player = self.ecs.fetch::<Entity>();
+        let player = <(Entity, &Player)>::query()
+                    .iter(self.ecs)
+                    .find_map(|(entity, _player)| Some(*entity))
+                    .unwrap();
 
-        for (render, ent, name) in (&mut renderables, &entities, &names).join() {
-            if ent == *player {
+        <(Entity, &mut Renderable, &Name)>::query().iter_mut(self.ecs).for_each(|(ent, render, name)| {
+            if *ent == player {
                 render.color = ColorPair::new(color("BrightWhite", 1.0), color("Background", 1.0));
             } else {
                 let raws = &RAWS.lock().unwrap();
@@ -339,11 +340,10 @@ impl<'a> Renderer<'a> {
                         ColorPair::new(color(&renderable.fg, 1.0), color(&renderable.bg, 1.0));
                 }
             }
-        }
+        });
 
-        let remains = self.ecs.read_storage::<Remains>();
-        for (render, _remain) in (&mut renderables, &remains).join() {
+        <(&mut Renderable, &Remains)>::query().iter_mut(self.ecs).for_each(|(render, remains)| {
             render.color = ColorPair::new(color("Red", 0.6), color("Background", 1.0));
-        }
+        });
     }
 }

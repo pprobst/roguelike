@@ -3,8 +3,10 @@ use super::{
     player::*,
     state::{RunState, State},
     utils::directions::*,
+    components::{Player, Position},
 };
 use bracket_lib::prelude::*;
+use legion::*;
 
 /*
  *
@@ -108,8 +110,12 @@ pub fn targeting_input(gs: &mut State, term: &mut BTerm) -> RunState {
 
 /// Valid inputs while in Targeting mode.
 pub fn action_dir_input(gs: &mut State, term: &mut BTerm) -> RunState {
-    let ppos = **(&gs.ecs.fetch::<Point>());
-    let mut map = gs.ecs.fetch_mut::<Map>();
+    let ppos = *(<(&Player, &Position)>::query()
+                    .iter(&gs.ecs)
+                    .map(|(_, pos)| pos)
+                    .nth(0)
+                    .unwrap());
+    let mut map = gs.resources.get_mut::<Map>().unwrap();
     match term.key {
         None => return RunState::ChooseActionDir,
         Some(key) => match key {

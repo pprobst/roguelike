@@ -15,4 +15,8 @@ pub mod melee;
 pub mod missile;
 pub mod weapon_reload;
 
-
+pub fn build_systems_scheduler() -> Schedule {
+    Schedule::builder()
+        // TODO
+        .build()
+}

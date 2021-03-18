@@ -1,6 +1,11 @@
-use super::{log::Log, spawner::spawn_remains, BaseStats, Inventory, Name, Player, Position};
+use super::{
+    log::Log, 
+    spawner::spawn_remains, 
+    components::{BaseStats, Inventory, Name, Player, Position}
+};
 use crate::utils::colors::*;
-pub use legion::*;
+use legion::*;
+use legion::systems::CommandBuffer;
 
 /*
  *
@@ -13,60 +18,52 @@ pub use legion::*;
 
 pub struct Killer<'a> {
     pub ecs: &'a mut World,
+    pub resources: &'a mut Resources,
 }
 
 /// Remove all the dead entities from the ECS.
-pub fn remove_dead_entities(ecs: &mut World) {
-    Killer { ecs }.kill_all()
+pub fn remove_dead_entities(ecs: &mut World, resources: &mut Resources) {
+    Killer { ecs, resources }.kill_all()
 }
 
 impl<'a> Killer<'a> {
     pub fn kill_all(&mut self) {
         let mut dead: Vec<(Entity, String, Position)> = Vec::new();
         {
-            let entities = self.ecs.entities();
-            let stats = self.ecs.read_storage::<BaseStats>();
-            let names = self.ecs.read_storage::<Name>();
-            let positions = self.ecs.read_storage::<Position>();
-            let player = self.ecs.read_storage::<Player>();
-            let mut log = self.ecs.fetch_mut::<Log>();
+            let mut log = self.resources.get_mut::<Log>().unwrap();
 
             let red = color("BrightRed", 1.0);
             let yellow = color("BrightYellow", 1.0);
 
-            for (ent, stats, name, pos) in (&entities, &stats, &names, &positions).join() {
+            <(Entity, &BaseStats, &Name, &Position)>::query().iter(self.ecs).for_each(|(ent, stats, name, pos)| {
                 if stats.health.hp <= 0 {
-                    let p: Option<&Player> = player.get(ent);
-                    if let Some(_p) = p {
+                    if self.ecs.entry_ref(*ent).unwrap().get_component::<Player>().is_ok() {
                         log.add("You died...", red);
                     } else {
                         log.add(format!("{} dies.", &name.name), yellow);
-                        dead.push((ent, name.name.to_string(), *pos));
+                        dead.push((*ent, name.name.to_string(), *pos));
                     }
                 }
+            });
+
+            let mut cb = CommandBuffer::new(&mut self.ecs);
+            for f in dead {
+                self.insert_remains(f.0, f.1, f.2);
+                cb.remove(f.0);
             }
-        }
-        for f in dead {
-            self.insert_remains(f.0, f.1, f.2);
-            self.ecs
-                .delete_entity(f.0)
-                .expect("Unable to remove the dead");
         }
     }
 
     #[allow(unused)]
     fn insert_remains(&mut self, ent: Entity, ent_name: String, ent_pos: Position) {
         let mut items: Vec<Entity> = Vec::new();
-        {
-            let inventory = self.ecs.read_storage::<Inventory>();
-            let entities = self.ecs.entities();
 
-            items = (&inventory, &entities)
-                .join()
-                .filter(|item| item.0.owner == ent)
-                .map(|item| item.1)
-                .collect::<Vec<_>>();
-        }
+        items = <(Entity, &Inventory)>::query()
+                .iter(self.ecs)
+                .filter(|item| item.1.owner == ent)
+                .map(|item| item.0)
+                .cloned()
+                .collect();
 
         if items.len() > 0 {
             spawn_remains(self.ecs, items, ent_name, ent_pos);

@@ -10,7 +10,6 @@ mod input;
 mod killer;
 mod log;
 mod map_gen;
-use map_gen::TileType;
 mod player;
 mod raws;
 mod renderer;

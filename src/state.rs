@@ -4,18 +4,16 @@ use super::{
     killer::remove_dead_entities,
     map_gen::*,
     raws::*,
+    systems::*,
+    spawner::{create_player, equip_player},
     renderer::{reload_colors, render_all},
-    systems::{
-        ai::HostileAISystem, consumable::ConsumableSystem, damage::DamageSystem,
-        equipment::EquipmentSystem, fov::FOVSystem, item_collect::ItemCollectSystem,
-        item_drop::ItemDropSystem, mapping::MappingSystem, melee::MeleeSystem,
-        missile::MissileSystem, weapon_reload::WeaponReloadSystem,
-    },
     ui::menu::MenuSelection,
+    log::*,
     SHOW_MAP,
 };
 use bracket_lib::prelude::*;
 use legion::*;
+use legion::systems::CommandBuffer;
 
 /*
  *
@@ -45,6 +43,8 @@ pub enum RunState {
 
 pub struct State {
     pub ecs: World,
+    pub resources: Resources,
+    pub systems: Schedule,
     pub runstate: RunState,
     pub show_map: bool,
     pub in_menu: bool,
@@ -52,9 +52,23 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(world: World) -> Self {
+    pub fn new() -> Self {
+        let mut ecs = World::default();
+        let mut resources = Resources::default();
+        let mut rng = RandomNumberGenerator::new();
+        let mut map = Map::new(80, 60, TileType::Floor, None);
+        let mut player = create_player(&mut ecs);
+        let mut log = Log::new();
+        resources.insert(rng);
+        resources.insert(map);
+        resources.insert(player);
+        resources.insert(RunState::Start);
+        resources.insert(log);
+        equip_player(&mut ecs);
         Self {
-            ecs: world,
+            ecs,
+            resources,
+            systems: build_systems_scheduler(),
             runstate: RunState::Start,
             show_map: SHOW_MAP,
             in_menu: true,
@@ -63,46 +77,41 @@ impl State {
     }
 
     fn run_systems(&mut self) {
+        // TODO
+        /*
         let mut vis = FOVSystem {};
         vis.run_now(&self.ecs);
-
         let mut hostile_ai = HostileAISystem {};
         hostile_ai.run_now(&self.ecs);
-
         let mut mapping = MappingSystem {};
         mapping.run_now(&self.ecs);
-
         let mut reload = WeaponReloadSystem {};
         reload.run_now(&self.ecs);
-
         let mut melee = MeleeSystem {};
         melee.run_now(&self.ecs);
-
         let mut missile = MissileSystem {};
         missile.run_now(&self.ecs);
-
         let mut damage = DamageSystem {};
         damage.run_now(&self.ecs);
-
         let mut collect_item = ItemCollectSystem {};
         collect_item.run_now(&self.ecs);
-
         let mut drop_item = ItemDropSystem {};
         drop_item.run_now(&self.ecs);
-
         let mut consumable = ConsumableSystem {};
         consumable.run_now(&self.ecs);
-
         let mut equip = EquipmentSystem {};
         equip.run_now(&self.ecs);
-
         self.ecs.maintain();
+        */
     }
 
+    /*
+    // TODO
     fn run_collect_system(&mut self) {
         let mut collect_item = ItemCollectSystem {};
         collect_item.run_now(&self.ecs);
     }
+    */
 
     pub fn generate_new_map(&mut self, width: i32, height: i32) -> Map {
         self.map_generator.push_map(width, height);
@@ -113,37 +122,25 @@ impl State {
     }
 
     pub fn entities_to_delete(&mut self) -> Vec<Entity> {
-        let ents = self.ecs.entities();
-        let player = self.ecs.read_storage::<Player>();
-        let player_ent = self.ecs.fetch::<Entity>();
-        let inventory = self.ecs.read_storage::<Inventory>();
-        let equipment = self.ecs.read_storage::<super::components::Equipment>();
-
-        let mut to_delete = Vec::new();
-        for ent in ents.join() {
-            let p = player.get(ent);
-            if let Some(_p) = p {
-                continue;
+        <Entity>::query().iter(&self.ecs).filter(|entity| {
+            let entry = self.ecs.entry(**entity).unwrap();
+            // Don't delete the player
+            if let Ok(_player) = entry.get_component::<Player>() {
+                //entities.push(entity);
+                return false;
             }
 
-            let equip = equipment.get(ent);
-            if let Some(equip) = equip {
-                if equip.user == *player_ent {
-                    continue;
-                }
+            // Don't delete the player's equipment
+            if let Ok(_inv) = entry.get_component::<Inventory>() {
+                return false;
             }
-
-            let inv = inventory.get(ent);
-            if let Some(inv) = inv {
-                if inv.owner == *player_ent {
-                    continue;
-                }
+            if let Ok(_equip) = entry.get_component::<super::components::Equipment>() {
+                return false;
             }
-
-            to_delete.push(ent);
-        }
-
-        to_delete
+            true
+        })
+        .cloned()
+        .collect()
     }
 
     pub fn populate_map(&mut self) {
@@ -152,22 +149,21 @@ impl State {
     }
 
     pub fn set_curr_map(&mut self, idx: usize) {
-        let mut curr_map = self.ecs.write_resource::<Map>();
+        let mut curr_map = self.resources.get_mut::<Map>().unwrap();
         *curr_map = self.map_generator.get_map(idx);
     }
 
     pub fn set_colorscheme(&mut self, colorscheme: &str, term: &mut BTerm, runstate: RunState) {
         &COLORS.lock().unwrap().set_curr_colorscheme(colorscheme);
-        reload_colors(&self.ecs, term, runstate);
+        reload_colors(&mut self.ecs, &mut self.resources, term, runstate);
     }
 }
 
 impl GameState for State {
     fn tick(&mut self, term: &mut BTerm) {
         let mut curr_state;
-        // We need scope because we'll do mutable borrow later.
         {
-            let runstate = self.ecs.fetch::<RunState>();
+            let runstate = self.resources.get::<RunState>().unwrap();
             curr_state = *runstate;
         }
 
@@ -214,7 +210,7 @@ impl GameState for State {
                 curr_state = RunState::ItemUse;
             }
             RunState::AccessContainer => {
-                self.run_collect_system();
+                //self.run_collect_system();
                 curr_state = RunState::AccessContainer;
             }
             RunState::Mapgen => match term.key {
@@ -223,10 +219,9 @@ impl GameState for State {
                 }
                 Some(key) => {
                     if let VirtualKeyCode::Space = key {
+                        let mut cb = CommandBuffer::new(&mut self.ecs);
                         for ent in self.entities_to_delete() {
-                            self.ecs
-                                .delete_entity(ent)
-                                .expect("FAILED to delete entity");
+                            cb.remove(ent);
                         }
                         self.generate_new_map(80, 60);
                         self.populate_map();
@@ -238,10 +233,11 @@ impl GameState for State {
                 }
             },
             RunState::NextLevel => {
+                let mut cb = CommandBuffer::new(&mut self.ecs);
                 for ent in self.entities_to_delete() {
-                    self.ecs
-                        .delete_entity(ent)
-                        .expect("FAILED to delete entity");
+                    for ent in self.entities_to_delete() {
+                            cb.remove(ent);
+                    }
                 }
                 self.generate_new_map(80, 60);
                 self.populate_map();
@@ -272,11 +268,11 @@ impl GameState for State {
         }
 
         {
-            let mut write_state = self.ecs.write_resource::<RunState>();
+            let mut write_state = self.resources.get_mut::<RunState>().unwrap();
             *write_state = curr_state;
         }
 
-        remove_dead_entities(&mut self.ecs);
-        render_all(&self.ecs, term, curr_state, self.show_map, self.in_menu);
+        remove_dead_entities(&mut self.ecs, &mut self.resources);
+        render_all(&mut self.ecs, &mut self.resources, term, curr_state, self.show_map, self.in_menu);
     }
 }
