@@ -25,28 +25,28 @@ pub fn player_input(gs: &mut State, term: &mut BTerm) -> RunState {
         Some(key) => match key {
             // Move East (E).
             VirtualKeyCode::L | VirtualKeyCode::Numpad6 | VirtualKeyCode::Right => {
-                move_player(EAST, &mut gs.ecs)
+                move_player(EAST, &mut gs)
             }
             // Move West (W).
             VirtualKeyCode::H | VirtualKeyCode::Numpad4 | VirtualKeyCode::Left => {
-                move_player(WEST, &mut gs.ecs)
+                move_player(WEST, &mut gs)
             }
             // Move North (N).
             VirtualKeyCode::K | VirtualKeyCode::Numpad8 | VirtualKeyCode::Up => {
-                move_player(NORTH, &mut gs.ecs)
+                move_player(NORTH, &mut gs)
             }
             // Move South (S).
             VirtualKeyCode::J | VirtualKeyCode::Numpad2 | VirtualKeyCode::Down => {
-                move_player(SOUTH, &mut gs.ecs)
+                move_player(SOUTH, &mut gs)
             }
             // Move Northeast (NE).
-            VirtualKeyCode::U | VirtualKeyCode::Numpad9 => move_player(NORTHEAST, &mut gs.ecs),
+            VirtualKeyCode::U | VirtualKeyCode::Numpad9 => move_player(NORTHEAST, &mut gs),
             // Move Northwest (NW).
-            VirtualKeyCode::Y | VirtualKeyCode::Numpad7 => move_player(NORTHWEST, &mut gs.ecs),
+            VirtualKeyCode::Y | VirtualKeyCode::Numpad7 => move_player(NORTHWEST, &mut gs),
             // Move Southeast (SE).
-            VirtualKeyCode::N | VirtualKeyCode::Numpad3 => move_player(SOUTHEAST, &mut gs.ecs),
+            VirtualKeyCode::N | VirtualKeyCode::Numpad3 => move_player(SOUTHEAST, &mut gs),
             // Move Southwest (SW).
-            VirtualKeyCode::B | VirtualKeyCode::Numpad1 => move_player(SOUTHWEST, &mut gs.ecs),
+            VirtualKeyCode::B | VirtualKeyCode::Numpad1 => move_player(SOUTHWEST, &mut gs),
 
             // Use missile weapon.
             VirtualKeyCode::F => return choose_target(&mut gs.ecs, false),

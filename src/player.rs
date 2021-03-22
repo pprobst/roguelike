@@ -4,11 +4,13 @@ use super::{
     ActiveWeapon, CollectItem, Container, EquipSlot, Equipable, Equipment, Fov, Item, MeleeAttack,
     MissileAttack, MissileWeapon, Mob, Player, Position, RunState, SelectedPosition, Target,
     TryReload,
+    State,
 };
 use crate::log::Log;
 use crate::utils::colors::*;
 use bracket_lib::prelude::*;
 use legion::*;
+use legion::systems::CommandBuffer;
 use std::cmp::Ordering;
 
 /*
@@ -20,16 +22,11 @@ use std::cmp::Ordering;
  */
 
 /// Tries to move the player, performing melee attacks if needed.
-pub fn move_player(dir: Direction, ecs: &mut World) {
-    let mut pos_ = ecs.write_storage::<Position>();
-    let mut player_ = ecs.write_storage::<Player>();
-    let mut fov = ecs.write_storage::<Fov>();
-    let map = ecs.fetch::<Map>();
-    //let stats = ecs.read_storage::<BaseStats>();
-    let mobs = ecs.read_storage::<Mob>();
-    let entities = ecs.entities();
+pub fn move_player(dir: Direction, gs: &mut State) {
+    let map = gs.resources.get::<Map>().unwrap();
+    let mut cb = CommandBuffer::new(&gs.ecs);
 
-    for (_player, pos, fov, entity) in (&mut player_, &mut pos_, &mut fov, &entities).join() {
+    <(Entity, &mut Player, &mut Position, &mut Fov)>::query().iter_mut(&mut gs.ecs).for_each(|(player_ent, _, pos, fov)| {
         let dir_x = dir.delta_x as i32;
         let dir_y = dir.delta_y as i32;
         let dest = map.idx(pos.x + dir_x, pos.y + dir_y);
@@ -37,13 +34,9 @@ pub fn move_player(dir: Direction, ecs: &mut World) {
         // Tries melee if you're trying to move into an occupied tile.
         for ents in map.entities[dest].iter() {
             for ent in ents.iter() {
-                let t = mobs.get(*ent);
-                if let Some(_t) = t {
+                if let Ok(_t) = gs.ecs.entry_ref(*ent).unwrap().get_component::<Mob>() {
                     println!("Attacking enemy.");
-                    let mut melee_attack = ecs.write_storage::<MeleeAttack>();
-                    melee_attack
-                        .insert(entity, MeleeAttack { target: *ent })
-                        .expect("Melee attack insertion failed");
+                    cb.add_component(*player_ent, MeleeAttack { target: *ent });
                 }
             }
         }
@@ -51,24 +44,22 @@ pub fn move_player(dir: Direction, ecs: &mut World) {
         if !map.tiles[dest].block {
             pos.x = pos.x + dir_x;
             pos.y = pos.y + dir_y;
-            let mut player_pos = ecs.write_resource::<Point>();
-            player_pos.x = pos.x;
-            player_pos.y = pos.y;
-            println!("New pos: {:?}", *player_pos);
+            //let mut player_pos = ecs.write_resource::<Point>();
+            //player_pos.x = pos.x;
+            //player_pos.y = pos.y;
+            //println!("New pos: {:?}", *player_pos);
             fov.dirty = true;
         }
-    }
+    });
+    cb.flush(&mut gs.ecs, &mut gs.resources);
 }
 
 fn get_weapon(ecs: &World, ent: Entity, wpn_slot: EquipSlot) -> Option<Entity> {
-    let slot = ecs.read_storage::<Equipable>();
-    let equipments = ecs.read_storage::<Equipment>();
-    let entities = ecs.entities();
-
-    let wpn = (&entities, &equipments, &slot)
-        .join()
+    let wpn = <(Entity, &Equipment, &Equipable)>::query()
+        .iter(ecs)
         .filter(|(_, equip, slot)| slot.slot == wpn_slot && equip.user == ent)
         .map(|(ent, _, _)| ent)
+        .cloned()
         .last();
 
     return wpn;
@@ -76,22 +67,18 @@ fn get_weapon(ecs: &World, ent: Entity, wpn_slot: EquipSlot) -> Option<Entity> {
 
 /// Checks if ent can shoot a missile weapon, that is, if the weapon is selected and has ammo.
 fn can_shoot(ecs: &World, ent: Entity) -> bool {
-    let active_wpn = ecs.read_storage::<ActiveWeapon>();
-    let missile_wpn = ecs.read_storage::<MissileWeapon>();
-
     let wpn = get_weapon(ecs, ent, EquipSlot::Weapon2);
-
     match wpn {
         Some(w) => {
-            if let Some(_t) = active_wpn.get(w) {
-                if missile_wpn.get(w).unwrap().ammo.ammo > 0 {
+            let entry = ecs.entry_ref(w).unwrap();
+            if let Ok(_t) = entry.get_component::<ActiveWeapon>() {
+                if entry.get_component::<MissileWeapon>().unwrap().ammo.ammo > 0 {
                     return true;
                 }
             }
         }
         None => return false,
     }
-
     false
 }
 

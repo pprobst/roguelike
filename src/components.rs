@@ -1,4 +1,4 @@
-use legion::{Entity, systems::CommandBuffer};
+use legion::{Entity, systems::CommandBuffer, world::*};
 use crate::utils::directions::Direction;
 use bracket_lib::prelude::{to_cp437, ColorPair, Point, RGB};
 use std::ops::{Add, AddAssign, Sub};
@@ -146,6 +146,7 @@ pub struct BaseStats {
     pub god: bool, // Doesn't die
 }
 
+#[derive(Clone)]
 pub struct SufferDamage {
     pub amount: Vec<(i32, bool)>,
 }
@@ -158,16 +159,16 @@ impl SufferDamage {
         from_player: bool,
     ) {
         commands.exec_mut(move |world, _| {
-            let mut dmg = if let Some(suffering) = world.get_component::<SufferDamage>(victim) {
-                (*suffering).clone()
-            } else {
-                SufferDamage { amount: Vec::new() }
-            };
+            if let Some(entry) = world.entry(victim) {
+                let mut dmg = if let Ok(suffering) = entry.get_component::<SufferDamage>() {
+                    (*suffering).clone()
+                } else {
+                    SufferDamage { amount: Vec::new() }
+                };
 
-            dmg.amount.push((amount, from_player));
-            world
-                .add_component(victim, dmg)
-                .expect("Unable to insert damage");
+                dmg.amount.push((amount, from_player));
+                entry.add_component(dmg)
+            }
         });
     }
 }
@@ -289,15 +290,15 @@ impl CollectItem {
         collector: Entity,
     ) {
         commands.exec_mut(move |world, _| {
-            if let Some(collecting) = world.get_component::<CollectItem>(collector) {
-                collecting.collects.push((item, collector));
-            } else {
-                let itm = CollectItem {
-                    collects: vec![(item, collector)],
-                };
-                world
-                    .add_component(collector, itm)
-                    .expect("Unable to insert item");
+            if let Some(entry) = world.entry(collector) {
+                if let Ok(collecting) = entry.get_component::<CollectItem>() {
+                    collecting.collects.push((item, collector));
+                } else {
+                    let itm = CollectItem {
+                        collects: vec![(item, collector)],
+                    };
+                    entry.add_component(itm);
+                }
             }
         });
     }

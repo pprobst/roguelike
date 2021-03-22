@@ -29,10 +29,6 @@ pub fn reload_colors(ecs: &mut World, resources: &mut Resources, term: &mut BTer
 }
 
 impl<'a> Renderer<'a> {
-    /*pub fn new(ecs: &'a World, term: &'a mut BTerm) -> Self {
-        Self { ecs, term }
-    }*/
-
     /// Renders all the elements of the game.
     /// * Map;
     /// * Entities;
@@ -75,8 +71,10 @@ impl<'a> Renderer<'a> {
     fn screen_bounds(&mut self) -> (i32, i32, i32, i32, i32, i32) {
         // https://www.reddit.com/r/roguelikedev/comments/8exy6o/brand_new_dev_struggling_with_a_scrolling_screen/
         // Player position.
-        let ppos = self.ecs.fetch::<Point>();
-        //println!("{}, {}", ppos.x, ppos.y);
+        let ppos = <(&Position, &Player)>::query()
+                    .iter(self.ecs)
+                    .find_map(|(pos, _player)| Some(*pos))
+                    .unwrap();
 
         // Size of the map portion shown on screen.
         //let (cam_x, cam_y) = self.term.get_char_size();
@@ -86,7 +84,6 @@ impl<'a> Renderer<'a> {
         let max_x = min_x + cam_x as i32;
         let min_y = ppos.y - (cam_y / 2) as i32;
         let max_y = min_y + cam_y as i32;
-        //println!("min_x: {}, max_x: {}, min_y: {}, max_y: {}", min_x, max_x, min_y, max_y);
 
         let x_offset = X_OFFSET;
         let y_offset = Y_OFFSET;
@@ -143,7 +140,7 @@ impl<'a> Renderer<'a> {
         x_offset: i32,
         y_offset: i32,
     ) {
-        let mut map = self.ecs.fetch_mut::<Map>();
+        let mut map = self.resources.get_mut::<Map>().unwrap();
 
         if show_map {
             let _map = map.clone();
@@ -183,14 +180,11 @@ impl<'a> Renderer<'a> {
         x_offset: i32,
         y_offset: i32,
     ) {
-        let map = self.ecs.fetch::<Map>();
-        let positions = self.ecs.read_storage::<Position>();
-        let renderables = self.ecs.read_storage::<Renderable>();
-        let targets = self.ecs.read_storage::<Target>();
-        let entities = self.ecs.entities();
+        let map = self.resources.get::<Map>().unwrap();
+        let targets = <&Target>::query().iter(self.ecs);
 
-        let mut render_data = (&positions, &renderables, &entities)
-            .join()
+        let mut render_data = <(&Position, &Renderable, Entity)>::query()
+            .iter(self.ecs)
             .collect::<Vec<_>>();
 
         // Sorting renderables by layer: the renderables with layer 0 will be rendered first, that
@@ -209,11 +203,12 @@ impl<'a> Renderer<'a> {
                         render.color,
                         render.glyph,
                     );
-                    let target = targets.get(ent);
-                    if let Some(_target) = target {
+                    if let Ok(_target) = self.ecs.entry_ref(*ent).unwrap().get_component::<&Target>() {
+                        let ppos = <(&Position, &Player)>::query()
+                                    .iter(self.ecs)
+                                    .find_map(|(pos, _player)| Some(*pos))
+                                    .unwrap();
                         let cover = _target.covered;
-                        let pt = self.ecs.fetch::<Point>();
-                        let ppos = *pt;
                         self.render_line_path(
                             draw_batch,
                             Point::new(ppos.x - min_x + x_offset, ppos.y - min_y + y_offset),
@@ -228,7 +223,7 @@ impl<'a> Renderer<'a> {
     }
 
     fn render_ui(&mut self, draw_batch: &mut DrawBatch, min_x: i32, min_y: i32) {
-        let mut write_state = self.ecs.write_resource::<RunState>();
+        let mut write_state = self.resources.get_mut::<RunState>().unwrap();
 
         match self.state {
             RunState::Menu {
