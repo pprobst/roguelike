@@ -2,18 +2,18 @@ use super::{
     components::*,
     input::*,
     killer::remove_dead_entities,
+    log::*,
     map_gen::*,
     raws::*,
-    systems::*,
-    spawner::{create_player, equip_player},
     renderer::{reload_colors, render_all},
+    spawner::{create_player, equip_player},
+    systems::*,
     ui::menu::MenuSelection,
-    log::*,
     SHOW_MAP,
 };
 use bracket_lib::prelude::*;
-use legion::*;
 use legion::systems::CommandBuffer;
+use legion::*;
 
 /*
  *
@@ -122,25 +122,27 @@ impl State {
     }
 
     pub fn entities_to_delete(&mut self) -> Vec<Entity> {
-        <Entity>::query().iter(&self.ecs).filter(|entity| {
-            let entry = self.ecs.entry(**entity).unwrap();
-            // Don't delete the player
-            if let Ok(_player) = entry.get_component::<Player>() {
-                //entities.push(entity);
-                return false;
-            }
+        <Entity>::query()
+            .iter(&self.ecs)
+            .filter(|entity| {
+                let entry = self.ecs.entry(**entity).unwrap();
+                // Don't delete the player
+                if let Ok(_player) = entry.get_component::<Player>() {
+                    //entities.push(entity);
+                    return false;
+                }
 
-            // Don't delete the player's equipment
-            if let Ok(_inv) = entry.get_component::<Inventory>() {
-                return false;
-            }
-            if let Ok(_equip) = entry.get_component::<super::components::Equipment>() {
-                return false;
-            }
-            true
-        })
-        .cloned()
-        .collect()
+                // Don't delete the player's equipment
+                if let Ok(_inv) = entry.get_component::<Inventory>() {
+                    return false;
+                }
+                if let Ok(_equip) = entry.get_component::<super::components::Equipment>() {
+                    return false;
+                }
+                true
+            })
+            .cloned()
+            .collect()
     }
 
     pub fn populate_map(&mut self) {
@@ -236,7 +238,7 @@ impl GameState for State {
                 let mut cb = CommandBuffer::new(&mut self.ecs);
                 for ent in self.entities_to_delete() {
                     for ent in self.entities_to_delete() {
-                            cb.remove(ent);
+                        cb.remove(ent);
                     }
                 }
                 self.generate_new_map(80, 60);
@@ -273,6 +275,13 @@ impl GameState for State {
         }
 
         remove_dead_entities(&mut self.ecs, &mut self.resources);
-        render_all(&mut self.ecs, &mut self.resources, term, curr_state, self.show_map, self.in_menu);
+        render_all(
+            &mut self.ecs,
+            &mut self.resources,
+            term,
+            curr_state,
+            self.show_map,
+            self.in_menu,
+        );
     }
 }

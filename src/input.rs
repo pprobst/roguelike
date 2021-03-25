@@ -1,9 +1,9 @@
 use super::{
+    components::{Player, Position},
     map_gen::Map,
     player::*,
     state::{RunState, State},
     utils::directions::*,
-    components::{Player, Position},
 };
 use bracket_lib::prelude::*;
 use legion::*;
@@ -49,7 +49,7 @@ pub fn player_input(gs: &mut State, term: &mut BTerm) -> RunState {
             VirtualKeyCode::B | VirtualKeyCode::Numpad1 => move_player(SOUTHWEST, &mut gs),
 
             // Use missile weapon.
-            VirtualKeyCode::F => return choose_target(&mut gs.ecs, false),
+            VirtualKeyCode::F => return choose_target(&mut gs, false),
 
             // Switch readied weapon.
             VirtualKeyCode::Z => return switch_weapon(&mut gs.ecs),
@@ -111,10 +111,10 @@ pub fn targeting_input(gs: &mut State, term: &mut BTerm) -> RunState {
 /// Valid inputs while in Targeting mode.
 pub fn action_dir_input(gs: &mut State, term: &mut BTerm) -> RunState {
     let ppos = *(<(&Player, &Position)>::query()
-                    .iter(&gs.ecs)
-                    .map(|(_, pos)| pos)
-                    .nth(0)
-                    .unwrap());
+        .iter(&gs.ecs)
+        .map(|(_, pos)| pos)
+        .nth(0)
+        .unwrap());
     let mut map = gs.resources.get_mut::<Map>().unwrap();
     match term.key {
         None => return RunState::ChooseActionDir,

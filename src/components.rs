@@ -1,6 +1,6 @@
-use legion::{Entity, systems::CommandBuffer, world::*};
 use crate::utils::directions::Direction;
 use bracket_lib::prelude::{to_cp437, ColorPair, Point, RGB};
+use legion::{systems::CommandBuffer, world::*, Entity};
 use std::ops::{Add, AddAssign, Sub};
 use strum_macros::EnumString;
 //use std::collections::HashSet;
@@ -152,12 +152,7 @@ pub struct SufferDamage {
 }
 
 impl SufferDamage {
-    pub fn add_damage(
-        commands: &CommandBuffer,
-        victim: Entity,
-        amount: i32,
-        from_player: bool,
-    ) {
+    pub fn add_damage(commands: &CommandBuffer, victim: Entity, amount: i32, from_player: bool) {
         commands.exec_mut(move |world, _| {
             if let Some(entry) = world.entry(victim) {
                 let mut dmg = if let Ok(suffering) = entry.get_component::<SufferDamage>() {
@@ -284,11 +279,7 @@ pub struct CollectItem {
 }
 
 impl CollectItem {
-    pub fn add_collect(
-        commands: &CommandBuffer,
-        item: Entity,
-        collector: Entity,
-    ) {
+    pub fn add_collect(commands: &CommandBuffer, item: Entity, collector: Entity) {
         commands.exec_mut(move |world, _| {
             if let Some(entry) = world.entry(collector) {
                 if let Ok(collecting) = entry.get_component::<CollectItem>() {

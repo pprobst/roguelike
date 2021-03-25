@@ -1,11 +1,11 @@
 use super::{
-    log::Log, 
-    spawner::spawn_remains, 
-    components::{BaseStats, Inventory, Name, Player, Position}
+    components::{BaseStats, Inventory, Name, Player, Position},
+    log::Log,
+    spawner::spawn_remains,
 };
 use crate::utils::colors::*;
-use legion::*;
 use legion::systems::CommandBuffer;
+use legion::*;
 
 /*
  *
@@ -35,16 +35,24 @@ impl<'a> Killer<'a> {
             let red = color("BrightRed", 1.0);
             let yellow = color("BrightYellow", 1.0);
 
-            <(Entity, &BaseStats, &Name, &Position)>::query().iter(self.ecs).for_each(|(ent, stats, name, pos)| {
-                if stats.health.hp <= 0 {
-                    if self.ecs.entry_ref(*ent).unwrap().get_component::<Player>().is_ok() {
-                        log.add("You died...", red);
-                    } else {
-                        log.add(format!("{} dies.", &name.name), yellow);
-                        dead.push((*ent, name.name.to_string(), *pos));
+            <(Entity, &BaseStats, &Name, &Position)>::query()
+                .iter(self.ecs)
+                .for_each(|(ent, stats, name, pos)| {
+                    if stats.health.hp <= 0 {
+                        if self
+                            .ecs
+                            .entry_ref(*ent)
+                            .unwrap()
+                            .get_component::<Player>()
+                            .is_ok()
+                        {
+                            log.add("You died...", red);
+                        } else {
+                            log.add(format!("{} dies.", &name.name), yellow);
+                            dead.push((*ent, name.name.to_string(), *pos));
+                        }
                     }
-                }
-            });
+                });
 
             let mut cb = CommandBuffer::new(&mut self.ecs);
             for f in dead {
@@ -59,11 +67,11 @@ impl<'a> Killer<'a> {
         let mut items: Vec<Entity> = Vec::new();
 
         items = <(Entity, &Inventory)>::query()
-                .iter(self.ecs)
-                .filter(|item| item.1.owner == ent)
-                .map(|item| item.0)
-                .cloned()
-                .collect();
+            .iter(self.ecs)
+            .filter(|item| item.1.owner == ent)
+            .map(|item| item.0)
+            .cloned()
+            .collect();
 
         if items.len() > 0 {
             spawn_remains(self.ecs, items, ent_name, ent_pos);

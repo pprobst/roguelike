@@ -2,15 +2,14 @@ use super::{
     map_gen::{common::count_neighbor_tile_entity, Map, TileType},
     utils::directions::*,
     ActiveWeapon, CollectItem, Container, EquipSlot, Equipable, Equipment, Fov, Item, MeleeAttack,
-    MissileAttack, MissileWeapon, Mob, Player, Position, RunState, SelectedPosition, Target,
+    MissileAttack, MissileWeapon, Mob, Player, Position, RunState, SelectedPosition, State, Target,
     TryReload,
-    State,
 };
 use crate::log::Log;
 use crate::utils::colors::*;
 use bracket_lib::prelude::*;
-use legion::*;
 use legion::systems::CommandBuffer;
+use legion::*;
 use std::cmp::Ordering;
 
 /*
@@ -26,31 +25,33 @@ pub fn move_player(dir: Direction, gs: &mut State) {
     let map = gs.resources.get::<Map>().unwrap();
     let mut cb = CommandBuffer::new(&gs.ecs);
 
-    <(Entity, &mut Player, &mut Position, &mut Fov)>::query().iter_mut(&mut gs.ecs).for_each(|(player_ent, _, pos, fov)| {
-        let dir_x = dir.delta_x as i32;
-        let dir_y = dir.delta_y as i32;
-        let dest = map.idx(pos.x + dir_x, pos.y + dir_y);
+    <(Entity, &mut Player, &mut Position, &mut Fov)>::query()
+        .iter_mut(&mut gs.ecs)
+        .for_each(|(player_ent, _, pos, fov)| {
+            let dir_x = dir.delta_x as i32;
+            let dir_y = dir.delta_y as i32;
+            let dest = map.idx(pos.x + dir_x, pos.y + dir_y);
 
-        // Tries melee if you're trying to move into an occupied tile.
-        for ents in map.entities[dest].iter() {
-            for ent in ents.iter() {
-                if let Ok(_t) = gs.ecs.entry_ref(*ent).unwrap().get_component::<Mob>() {
-                    println!("Attacking enemy.");
-                    cb.add_component(*player_ent, MeleeAttack { target: *ent });
+            // Tries melee if you're trying to move into an occupied tile.
+            for ents in map.entities[dest].iter() {
+                for ent in ents.iter() {
+                    if let Ok(_t) = gs.ecs.entry_ref(*ent).unwrap().get_component::<Mob>() {
+                        println!("Attacking enemy.");
+                        cb.add_component(*player_ent, MeleeAttack { target: *ent });
+                    }
                 }
             }
-        }
 
-        if !map.tiles[dest].block {
-            pos.x = pos.x + dir_x;
-            pos.y = pos.y + dir_y;
-            //let mut player_pos = ecs.write_resource::<Point>();
-            //player_pos.x = pos.x;
-            //player_pos.y = pos.y;
-            //println!("New pos: {:?}", *player_pos);
-            fov.dirty = true;
-        }
-    });
+            if !map.tiles[dest].block {
+                pos.x = pos.x + dir_x;
+                pos.y = pos.y + dir_y;
+                //let mut player_pos = ecs.write_resource::<Point>();
+                //player_pos.x = pos.x;
+                //player_pos.y = pos.y;
+                //println!("New pos: {:?}", *player_pos);
+                fov.dirty = true;
+            }
+        });
     cb.flush(&mut gs.ecs, &mut gs.resources);
 }
 
@@ -83,11 +84,15 @@ fn can_shoot(ecs: &World, ent: Entity) -> bool {
 }
 
 /// Cycles between the player's visible targets.
-pub fn choose_target(ecs: &mut World, up: bool) -> RunState {
-    let player = ecs.fetch::<Entity>();
-    let mut log = ecs.fetch_mut::<Log>();
+pub fn choose_target(gs: &mut State, up: bool) -> RunState {
+    let player = <(Entity, &Player)>::query()
+        .iter(&gs.ecs)
+        .find_map(|(entity, _player)| Some(*entity))
+        .unwrap();
 
-    if !can_shoot(&ecs, *player) {
+    let mut log = gs.resources.get_mut::<Log>().unwrap();
+
+    if !can_shoot(&gs.ecs, player) {
         log.add(
             format!("You can't use your ranged weapon."),
             color("BrightWhite", 1.0),
@@ -95,22 +100,24 @@ pub fn choose_target(ecs: &mut World, up: bool) -> RunState {
         return RunState::Waiting;
     }
 
-    let vis_targets = visible_targets(ecs, true);
-    let mut targets = ecs.write_storage::<Target>();
-    let entities = ecs.entities();
+    let vis_targets = visible_targets(&gs, true);
+    //let mut targets = ecs.write_storage::<Target>();
+    //let entities = ecs.entities();
 
     // Just return a waiting state if there aren't any visible targets.
     if vis_targets.len() < 1 {
         return RunState::Waiting;
     }
 
+    let mut cb = CommandBuffer::new(&gs.ecs);
     let mut curr_target: Option<Entity> = None;
 
-    for (e, _t) in (&entities, &targets).join() {
-        curr_target = Some(e);
-    }
-
-    targets.clear();
+    <(Entity, &Target)>::query()
+        .iter(&gs.ecs)
+        .for_each(|(ent, _)| {
+            cb.remove_component::<Target>(*ent);
+            curr_target = Some(*ent);
+        });
 
     if let Some(curr_target) = curr_target {
         // If there's already a target selected...
@@ -121,12 +128,9 @@ pub fn choose_target(ecs: &mut World, up: bool) -> RunState {
                 idx = i;
             }
         }
-
         if !up && idx > 0 {
             let tgt = vis_targets[idx - 1];
-            targets
-                .insert(tgt.0, Target { covered: tgt.2 })
-                .expect("Insert fail");
+            cb.add_component(tgt.0, Target { covered: tgt.2 });
         } else {
             if idx + 1 > vis_targets.len() - 1 {
                 idx = 0;
@@ -134,96 +138,96 @@ pub fn choose_target(ecs: &mut World, up: bool) -> RunState {
                 idx += 1;
             }
             let tgt = vis_targets[idx];
-            targets
-                .insert(tgt.0, Target { covered: tgt.2 })
-                .expect("Insert fail");
+            cb.add_component(tgt.0, Target { covered: tgt.2 });
         }
     } else {
         // If there's not a target select already, select the first closest visible.
         let first_target = vis_targets[0];
-        targets
-            .insert(
-                first_target.0,
-                Target {
-                    covered: first_target.2,
-                },
-            )
-            .expect("Insert fail");
+        cb.add_component(
+            first_target.0,
+            Target {
+                covered: first_target.2,
+            },
+        );
     }
+
+    cb.flush(&mut gs.ecs, &mut gs.resources);
 
     RunState::Targeting
 }
 
 /// Performs a missile (ranged) attack to the selected entity.
 pub fn missile_attack(ecs: &mut World) {
-    let entities = ecs.entities();
-    let mut targets = ecs.write_storage::<Target>();
-
     let mut curr_target: Option<Entity> = None;
 
-    for (e, _t) in (&entities, &targets).join() {
-        curr_target = Some(e);
-    }
+    <(Entity, &Target)>::query().iter(ecs).for_each(|(ent, _)| {
+        if let Some(entry) = ecs.entry(*ent) {
+            entry.remove_component::<Target>();
+            curr_target = Some(*ent);
+        }
+    });
 
     if let Some(target) = curr_target {
-        let mut missile_attack = ecs.write_storage::<MissileAttack>();
-        let player = ecs.fetch::<Entity>();
-        let t = targets.get(target);
-        if !t.unwrap().covered {
-            missile_attack
-                .insert(*player, MissileAttack { target })
-                .expect("Missile attack insertion failed");
+        let player = <(Entity, &Player)>::query()
+            .iter(ecs)
+            .find_map(|(entity, _player)| Some(*entity))
+            .unwrap();
+        if let Ok(t) = ecs.entry_ref(target).unwrap().get_component::<Target>() {
+            println!("Target OK");
+            if !t.covered {
+                let player_entry = ecs.entry(player).unwrap();
+                player_entry.add_component(MissileAttack { target });
+            }
         }
     }
-
-    targets.clear();
 }
 
 /// Cancels targeting, returning a Waiting state.
 pub fn reset_targeting(ecs: &mut World) -> RunState {
-    let mut targets = ecs.write_storage::<Target>();
-    targets.clear();
+    <(Entity, &Target)>::query()
+        .iter(ecs)
+        .for_each(|(ent, target)| {
+            if let Some(entry) = ecs.entry(*ent) {
+                entry.remove_component::<Target>();
+            }
+        });
     RunState::Waiting
 }
 
 /// Returns all the visible and/or hittable targets in the player's FOV ordered by distance to the player (cresc.).
-fn visible_targets(ecs: &World, hittable: bool) -> Vec<(Entity, f32, bool)> {
-    let player = ecs.read_storage::<Player>();
-    let fov = ecs.read_storage::<Fov>();
-    let map = ecs.fetch::<Map>();
-    let mobs = ecs.read_storage::<Mob>();
-    let positions = ecs.read_storage::<Position>();
-    let player_ent = ecs.fetch::<Entity>();
-
+fn visible_targets(gs: &State, hittable: bool) -> Vec<(Entity, f32, bool)> {
     let mut visible_targets: Vec<(Entity, f32, bool)> = Vec::new(); // (entity, distance, map_idx)
-    for (_player, fov) in (&player, &fov).join() {
-        for pos in fov.visible_pos.iter() {
-            let idx = map.idx(pos.x, pos.y);
-            for ents in map.entities[idx].iter() {
-                for ent in ents.iter() {
-                    let t = mobs.get(*ent);
-                    if let Some(_t) = t {
-                        let mobpos = Point::new(pos.x, pos.y);
-                        let player_pos = positions.get(*player_ent).unwrap();
-                        let ppos = Point::new(player_pos.x, player_pos.y);
-                        let mut covered = false;
-                        if hittable {
-                            let points = line2d_vector(ppos, mobpos);
-                            for pt in points.iter().take(points.len() - 1) {
-                                let i = map.idx(pt.x, pt.y);
-                                // if there's a blocker in the aim line, you can't hit the entity.
-                                if map.tiles[i].block {
-                                    covered = true;
+    let map = gs.resources.get::<Map>().unwrap();
+    let ecs = &gs.ecs;
+
+    <(Entity, &Player, &Fov, &Position)>::query()
+        .iter(ecs)
+        .for_each(|(e, player, fov, ppos)| {
+            let player_entry = ecs.entry_ref(*e).unwrap();
+            for pos in fov.visible_pos.iter() {
+                let idx = map.idx(pos.x, pos.y);
+                for ents in map.entities[idx].iter() {
+                    for ent in ents.iter() {
+                        if let Ok(_t) = ecs.entry_ref(*ent).unwrap().get_component::<Mob>() {
+                            let mobpos = Point::new(pos.x, pos.y);
+                            let mut covered = false;
+                            if hittable {
+                                let points = line2d_vector(*ppos, mobpos);
+                                for pt in points.iter().take(points.len() - 1) {
+                                    let i = map.idx(pt.x, pt.y);
+                                    // if there's a blocker in the aim line, you can't hit the entity.
+                                    if map.tiles[i].block {
+                                        covered = true;
+                                    }
                                 }
                             }
+                            let dist = DistanceAlg::Pythagoras.distance2d(mobpos, *ppos);
+                            visible_targets.push((*ent, dist, covered));
                         }
-                        let dist = DistanceAlg::Pythagoras.distance2d(mobpos, ppos);
-                        visible_targets.push((*ent, dist, covered));
                     }
                 }
             }
-        }
-    }
+        });
 
     visible_targets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
     visible_targets
@@ -231,31 +235,33 @@ fn visible_targets(ecs: &World, hittable: bool) -> Vec<(Entity, f32, bool)> {
 
 /// Switches between the two readied weapons.
 pub fn switch_weapon(ecs: &mut World) -> RunState {
-    let mut active_wpn = ecs.write_storage::<ActiveWeapon>();
-    let slot = ecs.read_storage::<Equipable>();
-    let equipments = ecs.read_storage::<Equipment>();
-    let entities = ecs.entities();
-    let player = ecs.fetch::<Entity>();
+    let player = <(Entity, &Player)>::query()
+        .iter(ecs)
+        .find_map(|(entity, _player)| Some(*entity))
+        .unwrap();
 
-    let wpns = (&entities, &equipments, &slot)
-        .join()
+    let wpns = <(Entity, &Equipment, &Equipable)>::query()
+        .iter(ecs)
         .filter(|(_, equip, slot)| {
             (slot.slot == EquipSlot::Weapon1 || slot.slot == EquipSlot::Weapon2)
-                && equip.user == *player
+                && equip.user == player
         })
         .map(|(ent, _, _)| ent)
         .collect::<Vec<_>>();
 
     if wpns.len() > 1 {
-        let weapon_to_switch = if let Some(_t) = active_wpn.get(wpns[0]) {
+        let wpn_0 = ecs.entry(*wpns[0]).unwrap();
+        let wpn_1 = ecs.entry(*wpns[1]).unwrap();
+        let weapon_to_switch = if let Ok(_t) = wpn_0.get_component::<ActiveWeapon>() {
+            wpn_0.remove_component::<ActiveWeapon>();
             wpns[1]
         } else {
+            wpn_1.remove_component::<ActiveWeapon>();
             wpns[0]
         };
-        active_wpn.clear();
-        active_wpn
-            .insert(weapon_to_switch, ActiveWeapon {})
-            .expect("Active weapon insert fail");
+        ecs.entry(*weapon_to_switch)
+            .unwrap()
+            .add_component(ActiveWeapon {});
         return RunState::PlayerTurn;
     }
 

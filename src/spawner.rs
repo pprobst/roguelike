@@ -114,8 +114,8 @@ pub fn create_player(ecs: &mut World) -> Entity {
 
 pub fn equip_player(ecs: &mut World) {
     let raws = &RAWS.lock().unwrap();
-    let melee_weapon = spawn_item("Tantou", None, ecs.create_entity(), raws).unwrap();
-    let missile_weapon = spawn_item("Revolver", None, ecs.create_entity(), raws).unwrap();
+    let melee_weapon = spawn_item("Tantou", None, &mut ecs, raws).unwrap();
+    let missile_weapon = spawn_item("Revolver", None, &mut ecs, raws).unwrap();
     let armor = spawn_item("Old Leather Armor", None, ecs.create_entity(), raws).unwrap();
     let pants = spawn_item("Bombacho", None, ecs.create_entity(), raws).unwrap();
     let ammo = spawn_item(".32 Ammo", None, ecs.create_entity(), raws).unwrap();

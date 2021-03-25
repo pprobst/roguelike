@@ -212,33 +212,34 @@ pub fn spawn_container(
 pub fn spawn_item(
     name: &str,
     position: Option<Position>,
-    entity: EntityBuilder,
+    ecs: &mut World,
     raws: &RawMaster,
 ) -> Option<Entity> {
     if raws.item_index.contains_key(name) {
         let item = &raws.raws.items[raws.item_index[name]];
-        let mut ent = entity;
-
-        ent = ent.with(Name {
-            name: item.name.clone(),
-        });
-        ent = ent.with(Description {
-            descr: item.descr.clone(),
-        });
-        ent = ent.with(Item { tier: item.tier });
+        let entity = ecs.push((
+            Name {
+                name: item.name.clone(),
+            },
+            Description {
+                descr: item.descr.clone(),
+            },
+            Item { tier: item.tier },
+        ));
+        let mut ent = ecs.entry(entity).unwrap();
 
         if let Some(pos) = position {
-            ent = ent.with(Position { x: pos.x, y: pos.y });
+            ent.add_component(Position { x: pos.x, y: pos.y });
         }
         if let Some(renderable) = &item.renderable {
-            ent = ent.with(set_renderable(renderable));
+            ent.add_component(set_renderable(renderable));
         }
         if let Some(consumable) = &item.consumable {
             for effect in consumable.effects.iter() {
                 let effname = effect.0.as_str();
                 match effname {
                     "heal" => {
-                        ent = ent.with(Consumable { heal: *effect.1 });
+                        ent.add_component(Consumable { heal: *effect.1 });
                     }
                     _ => return None,
                 }
@@ -246,51 +247,33 @@ pub fn spawn_item(
         }
         if let Some(equip) = &item.equipable {
             match equip.slot.as_str() {
-                "weapon1" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Weapon1,
-                    })
-                }
-                "weapon2" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Weapon2,
-                    })
-                }
-                "head" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Head,
-                    })
-                }
-                "torso" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Torso,
-                    })
-                }
-                "hands" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Hands,
-                    })
-                }
-                "legs" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Legs,
-                    })
-                }
-                "back" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Back,
-                    })
-                }
-                "feet" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Feet,
-                    })
-                }
-                "floating" => {
-                    ent = ent.with(Equipable {
-                        slot: EquipSlot::Floating,
-                    })
-                }
+                "weapon1" => ent.add_component(Equipable {
+                    slot: EquipSlot::Weapon1,
+                }),
+                "weapon2" => ent.add_component(Equipable {
+                    slot: EquipSlot::Weapon2,
+                }),
+                "head" => ent.add_component(Equipable {
+                    slot: EquipSlot::Head,
+                }),
+                "torso" => ent.add_component(Equipable {
+                    slot: EquipSlot::Torso,
+                }),
+                "hands" => ent.add_component(Equipable {
+                    slot: EquipSlot::Hands,
+                }),
+                "legs" => ent.add_component(Equipable {
+                    slot: EquipSlot::Legs,
+                }),
+                "back" => ent.add_component(Equipable {
+                    slot: EquipSlot::Back,
+                }),
+                "feet" => ent.add_component(Equipable {
+                    slot: EquipSlot::Feet,
+                }),
+                "floating" => ent.add_component(Equipable {
+                    slot: EquipSlot::Floating,
+                }),
                 _ => return None,
             }
         }
@@ -304,18 +287,14 @@ pub fn spawn_item(
                     range: 0,
                 };
                 match melee.class.as_str() {
-                    "dagger" => {
-                        ent = ent.with(MeleeWeapon {
-                            stats: weapon_stats,
-                            class: MeleeWeaponClass::Dagger,
-                        })
-                    }
-                    "axe" => {
-                        ent = ent.with(MeleeWeapon {
-                            stats: weapon_stats,
-                            class: MeleeWeaponClass::Axe,
-                        })
-                    }
+                    "dagger" => ent.add_component(MeleeWeapon {
+                        stats: weapon_stats,
+                        class: MeleeWeaponClass::Dagger,
+                    }),
+                    "axe" => ent.add_component(MeleeWeapon {
+                        stats: weapon_stats,
+                        class: MeleeWeaponClass::Axe,
+                    }),
                     _ => return None,
                 }
             }
@@ -331,35 +310,33 @@ pub fn spawn_item(
                 };
 
                 match missile.class.as_str() {
-                    "pistol" => {
-                        ent = ent.with(MissileWeapon {
-                            stats: weapon_stats,
-                            class: MissileWeaponClass::Pistol,
-                            ammo: Ammunition {
-                                max_ammo: missile.max_ammo,
-                                ammo: missile.max_ammo,
-                                ammo_type: AmmoType::from_str(&missile.ammo_type).unwrap(),
-                            },
-                        })
-                    }
+                    "pistol" => ent.add_component(MissileWeapon {
+                        stats: weapon_stats,
+                        class: MissileWeaponClass::Pistol,
+                        ammo: Ammunition {
+                            max_ammo: missile.max_ammo,
+                            ammo: missile.max_ammo,
+                            ammo_type: AmmoType::from_str(&missile.ammo_type).unwrap(),
+                        },
+                    }),
                     _ => return None,
                 }
             }
         }
         if let Some(ammo) = &item.ammunition {
-            ent = ent.with(Ammunition {
+            ent.add_component(Ammunition {
                 max_ammo: ammo.ammo,
                 ammo: ammo.ammo,
                 ammo_type: AmmoType::from_str(&ammo.ammo_type).unwrap(),
             })
         }
         if let Some(armor) = &item.armor {
-            ent = ent.with(Armor {
+            ent.add_component(Armor {
                 defense: armor.defense,
             })
         }
 
-        return Some(ent.build());
+        return Some(entity);
     }
 
     None

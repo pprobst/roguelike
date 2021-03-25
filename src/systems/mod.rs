@@ -1,7 +1,6 @@
-use legion::*;
-use legion::world::SubWorld;
 use legion::systems::CommandBuffer;
-
+use legion::world::SubWorld;
+use legion::*;
 
 pub mod ai;
 pub mod consumable;

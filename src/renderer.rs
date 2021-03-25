@@ -1,6 +1,6 @@
 use super::{
-    map_gen::Map, raws::*, ui::*, utils::colors::*, Name, Position, Remains, Renderable, RunState,
-    Target, Player, WINDOW_HEIGHT, WINDOW_WIDTH, X_OFFSET, Y_OFFSET,
+    map_gen::Map, raws::*, ui::*, utils::colors::*, Name, Player, Position, Remains, Renderable,
+    RunState, Target, WINDOW_HEIGHT, WINDOW_WIDTH, X_OFFSET, Y_OFFSET,
 };
 use bracket_lib::prelude::*;
 use legion::*;
@@ -20,12 +20,36 @@ pub struct Renderer<'a> {
     pub state: RunState,
 }
 
-pub fn render_all(ecs: &mut World, resources: &mut Resources, term: &mut BTerm, state: RunState, show_map: bool, in_menu: bool) {
-    Renderer { ecs, resources, term, state }.render_all(show_map, in_menu)
+pub fn render_all(
+    ecs: &mut World,
+    resources: &mut Resources,
+    term: &mut BTerm,
+    state: RunState,
+    show_map: bool,
+    in_menu: bool,
+) {
+    Renderer {
+        ecs,
+        resources,
+        term,
+        state,
+    }
+    .render_all(show_map, in_menu)
 }
 
-pub fn reload_colors(ecs: &mut World, resources: &mut Resources, term: &mut BTerm, state: RunState) {
-    Renderer { ecs, resources, term, state }.reload_colors()
+pub fn reload_colors(
+    ecs: &mut World,
+    resources: &mut Resources,
+    term: &mut BTerm,
+    state: RunState,
+) {
+    Renderer {
+        ecs,
+        resources,
+        term,
+        state,
+    }
+    .reload_colors()
 }
 
 impl<'a> Renderer<'a> {
@@ -72,9 +96,9 @@ impl<'a> Renderer<'a> {
         // https://www.reddit.com/r/roguelikedev/comments/8exy6o/brand_new_dev_struggling_with_a_scrolling_screen/
         // Player position.
         let ppos = <(&Position, &Player)>::query()
-                    .iter(self.ecs)
-                    .find_map(|(pos, _player)| Some(*pos))
-                    .unwrap();
+            .iter(self.ecs)
+            .find_map(|(pos, _player)| Some(*pos))
+            .unwrap();
 
         // Size of the map portion shown on screen.
         //let (cam_x, cam_y) = self.term.get_char_size();
@@ -203,11 +227,13 @@ impl<'a> Renderer<'a> {
                         render.color,
                         render.glyph,
                     );
-                    if let Ok(_target) = self.ecs.entry_ref(*ent).unwrap().get_component::<&Target>() {
+                    if let Ok(_target) =
+                        self.ecs.entry_ref(*ent).unwrap().get_component::<&Target>()
+                    {
                         let ppos = <(&Position, &Player)>::query()
-                                    .iter(self.ecs)
-                                    .find_map(|(pos, _player)| Some(*pos))
-                                    .unwrap();
+                            .iter(self.ecs)
+                            .find_map(|(pos, _player)| Some(*pos))
+                            .unwrap();
                         let cover = _target.covered;
                         self.render_line_path(
                             draw_batch,
@@ -320,25 +346,30 @@ impl<'a> Renderer<'a> {
         map.reload_tile_colors();
 
         let player = <(Entity, &Player)>::query()
-                    .iter(self.ecs)
-                    .find_map(|(entity, _player)| Some(*entity))
-                    .unwrap();
+            .iter(self.ecs)
+            .find_map(|(entity, _player)| Some(*entity))
+            .unwrap();
 
-        <(Entity, &mut Renderable, &Name)>::query().iter_mut(self.ecs).for_each(|(ent, render, name)| {
-            if *ent == player {
-                render.color = ColorPair::new(color("BrightWhite", 1.0), color("Background", 1.0));
-            } else {
-                let raws = &RAWS.lock().unwrap();
-                let ent_name = &name.name;
-                if let Some(renderable) = raws.get_renderable(ent_name) {
+        <(Entity, &mut Renderable, &Name)>::query()
+            .iter_mut(self.ecs)
+            .for_each(|(ent, render, name)| {
+                if *ent == player {
                     render.color =
-                        ColorPair::new(color(&renderable.fg, 1.0), color(&renderable.bg, 1.0));
+                        ColorPair::new(color("BrightWhite", 1.0), color("Background", 1.0));
+                } else {
+                    let raws = &RAWS.lock().unwrap();
+                    let ent_name = &name.name;
+                    if let Some(renderable) = raws.get_renderable(ent_name) {
+                        render.color =
+                            ColorPair::new(color(&renderable.fg, 1.0), color(&renderable.bg, 1.0));
+                    }
                 }
-            }
-        });
+            });
 
-        <(&mut Renderable, &Remains)>::query().iter_mut(self.ecs).for_each(|(render, remains)| {
-            render.color = ColorPair::new(color("Red", 0.6), color("Background", 1.0));
-        });
+        <(&mut Renderable, &Remains)>::query()
+            .iter_mut(self.ecs)
+            .for_each(|(render, remains)| {
+                render.color = ColorPair::new(color("Red", 0.6), color("Background", 1.0));
+            });
     }
 }

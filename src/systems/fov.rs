@@ -13,7 +13,6 @@ use bracket_lib::prelude::*;
 
 // See: https://github.com/thebracket/bracket-lib/blob/master/rltk/examples/ex04-fov.rs
 
-
 #[system]
 #[read_component(Position)]
 #[read_component(Player)]
@@ -21,14 +20,19 @@ use bracket_lib::prelude::*;
 pub fn fov(ecs: &mut SubWorld, #[resource] map: &Map) {
     <(Entity, &Position, &mut Fov)>::query()
         .iter_mut(ecs)
-        .filter(|(ent, _, fov) | fov.dirty)
+        .filter(|(ent, _, fov)| fov.dirty)
         .for_each(|(ent, pos, mut fov)| {
             fov.dirty = false;
             fov.visible_pos.clear();
             fov.visible_pos = field_of_view(Point::new(pos.x, pos.y), fov.range, &*map);
             fov.visible_pos.retain(|p| map.in_map_bounds(*p));
-            if ecs.entry_ref(*ent).unwrap().get_component::<Player>().is_ok() {
-            // Reset visible tiles in map.tiles.
+            if ecs
+                .entry_ref(*ent)
+                .unwrap()
+                .get_component::<Player>()
+                .is_ok()
+            {
+                // Reset visible tiles in map.tiles.
                 for tile in map.tiles.iter_mut() {
                     tile.visible = false
                 }
