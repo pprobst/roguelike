@@ -164,46 +164,47 @@ pub fn get_spawn_table(level: i32, maptype: MapType, raws: &RawMaster) -> SpawnT
     spawn_table
 }
 
-pub fn spawn_entity(name: &str, pos: Option<Position>, entity: EntityBuilder, raws: &RawMaster) {
+pub fn spawn_entity(name: &str, pos: Option<Position>, ecs: &mut World, raws: &RawMaster) {
     if raws.mob_index.contains_key(name) {
-        spawn_mob(name, pos.unwrap(), entity, raws);
+        spawn_mob(name, pos.unwrap(), ecs, raws);
     } else if raws.item_index.contains_key(name) {
-        spawn_item(name, pos, entity, raws);
+        spawn_item(name, pos, ecs, raws);
     } else if raws.furniture_index.contains_key(name) {
-        spawn_furniture(name, pos.unwrap(), entity, raws);
+        spawn_furniture(name, pos.unwrap(), ecs, raws);
     } else if raws.container_index.contains_key(name) {
-        spawn_container(name, pos.unwrap(), entity, raws);
+        spawn_container(name, pos.unwrap(), ecs, raws);
     }
 }
 
 pub fn spawn_container(
     name: &str,
     pos: Position,
-    entity: EntityBuilder,
+    ecs: &mut World,
     raws: &RawMaster,
 ) -> Option<Entity> {
     if raws.container_index.contains_key(name) {
         let container = &raws.raws.containers[raws.container_index[name]];
-        let mut ent = entity;
-
-        ent = ent.with(Name {
-            name: container.name.clone(),
-        });
-        ent = ent.with(Description {
-            descr: container.descr.clone(),
-        });
-        ent = ent.with(Position { x: pos.x, y: pos.y });
-        ent = ent.with(Blocker {});
-        ent = ent.with(Container {
-            tiers: container.tiers.clone(),
-            max_items: container.max_items,
-        });
+        let mut entity = ecs.push((
+            Name {
+                name: container.name.clone(),
+            },
+            Description {
+                descr: container.descr.clone(),
+            },
+            Position { x: pos.x, y: pos.y },
+            Blocker {},
+            Container {
+                tiers: container.tiers.clone(),
+                max_items: container.max_items,
+            },
+        ));
+        let mut ent = ecs.entry(entity).unwrap();
 
         if let Some(renderable) = &container.renderable {
-            ent = ent.with(set_renderable(renderable));
+            ent.add_component(set_renderable(renderable));
         }
 
-        return Some(ent.build());
+        return Some(entity);
     }
 
     None
@@ -345,60 +346,59 @@ pub fn spawn_item(
 pub fn spawn_furniture(
     name: &str,
     pos: Position,
-    entity: EntityBuilder,
+    ecs: &mut World,
     raws: &RawMaster,
 ) -> Option<Entity> {
     if raws.furniture_index.contains_key(name) {
         let furniture = &raws.raws.furnitures[raws.furniture_index[name]];
-        let mut ent = entity;
-        ent = ent.with(Name {
-            name: furniture.name.clone(),
-        });
-        ent = ent.with(Description {
-            descr: furniture.descr.clone(),
-        });
-        ent = ent.with(Position { x: pos.x, y: pos.y });
+        let entity = ecs.push((
+            Name {
+                name: furniture.name.clone(),
+            },
+            Description {
+                descr: furniture.descr.clone(),
+            },
+            Position { x: pos.x, y: pos.y },
+        ));
+        let mut ent = ecs.entry(entity).unwrap();
 
         if let Some(_blocker) = &furniture.blocker {
-            ent = ent.with(Blocker {});
+            ent.add_component(Blocker {});
         }
 
         if let Some(renderable) = &furniture.renderable {
-            ent = ent.with(set_renderable(renderable));
+            ent.add_component(set_renderable(renderable));
         }
 
-        Some(ent.build());
+        Some(entity);
     }
     None
 }
 
-pub fn spawn_mob(
-    name: &str,
-    pos: Position,
-    entity: EntityBuilder,
-    raws: &RawMaster,
-) -> Option<Entity> {
+pub fn spawn_mob(name: &str, pos: Position, ecs: &mut World, raws: &RawMaster) -> Option<Entity> {
     if raws.mob_index.contains_key(name) {
         let mob = &raws.raws.mobs[raws.mob_index[name]];
-        let mut ent = entity;
+        let entity = ecs.push((
+            Name {
+                name: mob.name.clone(),
+            },
+            Description {
+                descr: mob.descr.clone(),
+            },
+            Mob {
+                mob_type: mob.mob_type.parse().unwrap(),
+            },
+            Position { x: pos.x, y: pos.y },
+            Fov {
+                range: mob.fov_range,
+                dirty: true,
+                visible_pos: Vec::new(),
+            },
+        ));
+        let mut ent = ecs.entry(entity).unwrap();
 
-        ent = ent.with(Mob {
-            mob_type: mob.mob_type.parse().unwrap(),
-        });
-        ent = ent.with(Name {
-            name: mob.name.clone(),
-        });
-        ent = ent.with(Description {
-            descr: mob.descr.clone(),
-        });
-        ent = ent.with(Position { x: pos.x, y: pos.y });
-        ent = ent.with(Fov {
-            range: mob.fov_range,
-            dirty: true,
-            visible_pos: Vec::new(),
-        });
         if mob.blocker {
-            ent = ent.with(Blocker {});
+            ent.add_component(Blocker {});
         }
 
         let mut attack_stats = Attack {
@@ -417,7 +417,7 @@ pub fn spawn_mob(
             attack_stats.range = mob.stats.attack_range;
         }
 
-        ent = ent.with(BaseStats {
+        ent.add_component(BaseStats {
             health: Health {
                 max_hp: mob.stats.max_hp,
                 hp: mob.stats.hp,
@@ -428,10 +428,10 @@ pub fn spawn_mob(
         });
 
         if let Some(renderable) = &mob.renderable {
-            ent = ent.with(set_renderable(renderable));
+            ent.add_component(set_renderable(renderable));
         }
 
-        Some(ent.build());
+        Some(entity);
     }
 
     None
