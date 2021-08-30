@@ -9,7 +9,7 @@ categories = ["games"]
 [dependencies]
 bracket-lib = { version = "0.8.1", optional = true, default-features = false, features = ["threaded", "specs", "serde"] }
 lazy_static  = "1.4.0"
-specs = { version = "0.16.1", features = ["specs-derive"] }
+specs = { version = "0.17.0", features = ["specs-derive"] }
 specs-derive = "0.4.1"
 ron          = "0.6.0"
 serde        = { version = "1.0.106", features = [ "derive" ] }
