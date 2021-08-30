@@ -1,5 +1,7 @@
 # roguelike
-Continuing development of my roguelike.
+Continuing development of my roguelike game (ON-HOLD).
+
+![In-game screen.](screenshot.png)
 
 ## TODO
 - [ ] Change the ECS library from [specs](https://github.com/amethyst/specs/) to [legion](https://github.com/amethyst/legion).
